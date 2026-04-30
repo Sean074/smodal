@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-from scipy.signal import butter, sosfiltfilt
+from scipy.signal import butter, sosfiltfilt, sosfreqz
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -222,6 +222,41 @@ else:
     )
 
 st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Filter frequency response
+# ---------------------------------------------------------------------------
+if sos is not None and not filter_error:
+    with st.expander("Filter frequency response", expanded=False):
+        w, h = sosfreqz(sos, worN=4096, fs=fs)
+        gain_db = 20 * np.log10(np.maximum(np.abs(h), 1e-12))
+        phase_deg = np.degrees(np.unwrap(np.angle(h)))
+
+        fig_fr = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.08,
+            subplot_titles=("Gain (dB)", "Phase (°)"),
+        )
+        fig_fr.add_trace(
+            go.Scatter(x=w, y=gain_db, mode="lines", line=dict(color="#1f77b4", width=1.5), showlegend=False),
+            row=1, col=1,
+        )
+        fig_fr.add_trace(
+            go.Scatter(x=w, y=phase_deg, mode="lines", line=dict(color="#ff7f0e", width=1.5), showlegend=False),
+            row=2, col=1,
+        )
+        fig_fr.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
+        fig_fr.update_yaxes(title_text="Gain (dB)", row=1, col=1)
+        fig_fr.update_yaxes(title_text="Phase (°)", row=2, col=1)
+        fig_fr.update_layout(
+            height=420,
+            margin=dict(t=40, b=40, l=60, r=20),
+            title_text=f"{filter_type}  |  order {order}  |  "
+                       + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass") else f"{f_lo}–{f_hi} Hz"),
+        )
+        st.plotly_chart(fig_fr, use_container_width=True)
 
 # ---------------------------------------------------------------------------
 # Persist processed (trimmed + filtered) signals for downstream pages

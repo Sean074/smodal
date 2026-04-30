@@ -105,6 +105,12 @@ Four tabs:
 - `Gxx` (input) and `Gyy` (each output) plotted in dB (10 log₁₀).
 - Stacked subplots, shared x-axis.
 
+### PSD
+- One-sided Power Spectral Density for input (`Sxx`) and each output channel (`Syy`), stacked subplots with shared x-axis.
+- PSD is normalised by frequency resolution so units are (measurement unit)²/Hz:  - *Welch*: `scipy.signal.welch` already returns a properly normalised one-sided PSD.
+- *Single FFT*: `PSD = 2 · |FFT|² / (fs · N)` (factor of 2 for one-sided, divided by window energy `fs · N`).
+- Y-axis display toggle: linear (unit)²/Hz or dB (10 log₁₀ of the PSD).- Δf annotation per subplot caption so the analyst can confirm frequency resolution.
+
 ### Cross-Power
 - `|Gyx|` in dB and `∠Gyx` in degrees, two rows per output channel.
 

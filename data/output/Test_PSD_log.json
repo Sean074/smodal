@@ -1,0 +1,45 @@
+{
+  "date": "2026-04-30T13:22:09",
+  "analysis_name": "Test PSD",
+  "analyst": "Sean",
+  "description": "Check the PSD implimentation",
+  "comment": "",
+  "data_summary": [
+    {
+      "Channel": "force",
+      "Type": "Input",
+      "Samples": 10240,
+      "Sample Rate (Hz)": 1024.0,
+      "Duration (s)": 9.999,
+      "Min Time (s)": 0.0,
+      "Max Time (s)": 9.999023,
+      "Min Value": -4.326658,
+      "Max Value": 3.975105,
+      "RMS": 1.008192
+    },
+    {
+      "Channel": "acc_1",
+      "Type": "Output",
+      "Samples": 10240,
+      "Sample Rate (Hz)": 1024.0,
+      "Duration (s)": 9.999,
+      "Min Time (s)": 0.0,
+      "Max Time (s)": 9.999023,
+      "Min Value": -0.000354,
+      "Max Value": 0.000355,
+      "RMS": 0.000117
+    },
+    {
+      "Channel": "acc_2",
+      "Type": "Output",
+      "Samples": 10240,
+      "Sample Rate (Hz)": 1024.0,
+      "Duration (s)": 9.999,
+      "Min Time (s)": 0.0,
+      "Max Time (s)": 9.999023,
+      "Min Value": -0.000231,
+      "Max Value": 0.00024,
+      "RMS": 7.4e-05
+    }
+  ]
+}
