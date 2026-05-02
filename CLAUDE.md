@@ -32,11 +32,11 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, PSD, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
-| `pages/5_Integration.py` | Integration / Differentiation | Stub |
+| `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX), inline pre-processing | Implemented |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
 | `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
 
-> **Note:** MIMO EMA (multi-reference pLSCF) is fully specified in `modal_analysis.md` but not yet assigned to a page. `todo.md` tracks known bugs and development notes.
+`todo.md` tracks known bugs and development notes.
 
 ### Shared state
 
@@ -60,6 +60,17 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
+| `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract, charts) |
+| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
+| `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
+| `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 Every page guards against missing data with:
 ```python
@@ -77,6 +88,7 @@ if st.session_state.get("df") is None:
 
 #### `core/sysid.py`
 - `compute_cmif(H)` — `np.linalg.norm(H, axis=1)`; Euclidean norm per frequency line (equivalent to first singular value of a row vector).
+- `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
 - `cmif_peak_estimates(cmif, freqs, n_modes)` — top-N peaks by `scipy.signal.find_peaks` prominence; falls back to evenly spaced frequencies.
 - `poles_from_estimates(fn_hz, xi)` — converts fn (Hz) and ξ arrays to continuous-time complex poles `s = −ξωₙ + jωd`.
 - `plscf_poles(H, freqs, n_order)` — pLSCF for one model order; real-valued normal equations, monic denominator, `numpy.roots`, `s = log(z)/Δt`; returns physical poles only.
@@ -136,6 +148,19 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 - Build stores `si_stability_table`, `si_cmif`, `si_H_mat`, `si_freqs_band`, `si_sel_outputs`, `si_frf_est_used` in session state and clears any previous `modal_results`.
 - Extract stores `modal_results` (fn, xi, poles, mode_shapes, output_channels, freqs, H_measured, H_synthesis, nmse).
 - Four tabs: **CMIF** (log-scale, live from selected channels), **Stability Diagram** (scatter per class + CMIF background), **Mode Shapes** (summary table + stacked FRF overlays with optional modal contributions, NMSE per subplot), **Export** (downloadable CSV).
+
+#### Page 5 — MIMO EMA
+- Loads Run A (in-phase) and Run B (out-of-phase) CSVs independently via file uploaders on the page — does not use landing-page session data.
+- Sample rate derived from Run A time column.
+- Channel assignment: separate input-channel selectboxes for Run A and Run B; shared output multiselect.
+- Optional pre-processing expander (time trim + Butterworth filter) applied identically to both runs before FRF computation.
+- **Step 1**: FRF method (Welch/Single FFT), FRF estimator (H1/H2/Hv), Welch controls, frequency range, max model order, stability thresholds → **Build Stability Diagram**.
+  - FRFs computed independently per run using the chosen SIMO estimator, then column-stacked: `H_stacked = [H_A | H_B]` shape `(n_freqs, n_out × 2)`.
+  - pLSCF sweep over stacked matrix; CMIF via SVD of per-frequency `(n_out × 2)` slice.
+- **Step 2**: n_modes (auto from green pole count), editable estimates table → **Extract Mode Shapes**.
+  - Residues reshaped to `(n_out, 2, n_modes)`; per mode, ‖Run A‖ vs ‖Run B‖ norm determines S/A type label.
+  - FRF synthesis and NMSE over full `(n_freqs, n_out × 2)` matrix.
+- Four tabs: **CMIF** (σ₁/σ₂ log-scale), **Stability Diagram** (same four-class scatter + σ₁ background), **Mode Shapes** (summary table + 4-row subplots per channel: Run A mag/phase, Run B mag/phase, with optional modal contributions and NMSE annotation), **Export** (downloadable CSV, stores `mimo_modal_results`).
 
 ### Spectral analysis formulas (page 3)
 

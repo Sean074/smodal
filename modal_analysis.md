@@ -9,7 +9,7 @@
 | 2 | FFT | Implemented |
 | 3 | Spectral Analysis | Implemented |
 | 4 | System Identification (SIMO EMA) | Implemented |
-| 5 | MIMO EMA (Multi-Reference System Identification) | Stub |
+| 5 | MIMO EMA (Multi-Reference System Identification) | Implemented |
 | 6 | Modal Assurance Criteria (MAC) | Stub |
 | 7 | Wireframe Mode Shape | Stub |
 
@@ -247,11 +247,19 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - **Run B input channel** — force reference for the out-of-phase run.
 - **Output channels** multiselect — channels present in both runs.
 
+### Pre-processing expander (optional, applied identically to both runs)
+- **Time range** slider — trims both runs to the same window.
+- **Filter type** radio: None / Lowpass / Highpass / Bandpass / Bandstop (Butterworth).
+  - Filter order slider (1–8).
+  - Single cutoff for Lowpass/Highpass; separate low/high cutoffs for Bandpass/Bandstop.
+- Caption shows time window, approximate sample count, and active filter.
+
 ### Controls
 
 **Step 1 — Stability Diagram**
 - **FRF method** radio: Welch / Single FFT (consistent with Page 3 options).
 - **Welch controls** (if selected): Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar).
+- **FRF estimator** radio: H1 / H2 / Hv (applied independently to each run before stacking).
 - **Frequency range** slider.
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
@@ -278,9 +286,14 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - SVD-CMIF σ₁ curve shown in background for reference.
 
 #### Mode Shapes
-- Summary table: Mode #, fn (Hz), ξ (%), type (Symmetric / Antisymmetric), |φ| and ∠φ (°) per output per reference.
-- Mode type: if Run A residues dominate → Symmetric (S-mode); Run B residues dominate → Antisymmetric (A-mode).
-- Stacked FRF subplots (magnitude dB, phase °) per output per reference: measured (solid) vs synthesised (dashed red), optional modal contributions, NMSE annotation.
+- Summary table: Mode #, fn (Hz), ξ (%), type (S/A), |φ| and ∠φ (°) per output per reference (columns labelled `A·<ch>` and `B·<ch>`).
+- Mode type: if ‖Run A residues‖ ≥ ‖Run B residues‖ → Symmetric (S); otherwise Antisymmetric (A).
+- Per-channel plot selector multiselect (defaults to first 4 channels).
+- 4 subplot rows per selected channel (Run A magnitude dB, Run A phase °, Run B magnitude dB, Run B phase °), shared x-axis:
+  - Measured — solid colour line.
+  - Synthesised — dashed red line.
+  - Optional individual modal contributions — thin dotted lines (toggled by checkbox).
+- NMSE (dB) annotated on each magnitude subplot title.
 
 #### Export
 - Table of identified modes (fn, ξ, type, amplitude and phase per output per reference) downloadable as `<analysis_name>_mimo_results.csv`.
@@ -289,9 +302,10 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 ### Algorithm — Multi-reference pLSCF (PolyMAX)
 
 #### FRF matrix construction
-- Run A FRFs: H_A(ω) shape (n_freqs, n_out) — H1 estimator from in-phase reference to each output.
-- Run B FRFs: H_B(ω) shape (n_freqs, n_out) — same, from out-of-phase reference.
-- Stacked MIMO matrix: H(ω) = [H_A | H_B] reshaped to (n_freqs, n_out × 2).
+- Run A FRFs: H_A(ω) shape (n_freqs, n_out) — computed per-output using the selected estimator (H1/H2/Hv) with the Run A input channel as reference.
+- Run B FRFs: H_B(ω) shape (n_freqs, n_out) — same approach using the Run B input channel.
+- Stacked MIMO matrix: H(ω) = [H_A | H_B] shape (n_freqs, n_out × 2).
+- Note: FRFs are estimated independently per run (SIMO approach stacked), not via full MIMO matrix inversion `H = Gyx · Gxx⁻¹`. This is valid when the two input forces are recorded as separate time-series runs rather than simultaneous acquisitions.
 
 #### SVD-CMIF
 - At each frequency line: SVD of the (n_out × 2) H slice → singular values σ₁, σ₂.
@@ -323,6 +337,9 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 | `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
 | `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
+| `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
