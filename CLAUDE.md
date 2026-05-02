@@ -32,7 +32,7 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
-| `pages/5_Integration.py` | Signal integration / differentiation | Stub |
+| `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF with in-phase / out-of-phase sine excitation | Stub |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
 | `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
 
@@ -58,6 +58,14 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
+| `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build, Export) |
+| `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
+| `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
+| `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 Every page (except `7_Wireframe.py`) guards against missing data with:
 ```python
@@ -75,6 +83,7 @@ if st.session_state.get("df") is None:
 
 #### `core/sysid.py`
 - `compute_cmif(H)` — `np.linalg.norm(H, axis=1)`; Euclidean norm per frequency line (equivalent to first singular value of a row vector).
+- `compute_mimo_cmif(H_3d)` — SVD at each frequency line of the (n_out × n_ref) H slice; returns (n_freqs, n_ref) singular value matrix; used by the Page 5 CMIF tab.
 - `cmif_peak_estimates(cmif, freqs, n_modes)` — top-N peaks by `scipy.signal.find_peaks` prominence; falls back to evenly spaced frequencies.
 - `poles_from_estimates(fn_hz, xi)` — converts fn (Hz) and ξ arrays to continuous-time complex poles `s = −ξωₙ + jωd`.
 - `plscf_poles(H, freqs, n_order)` — pLSCF for one model order; real-valued normal equations, monic denominator, `numpy.roots`, `s = log(z)/Δt`; returns physical poles only.
@@ -133,6 +142,16 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 - Build stores `si_stability_table`, `si_cmif`, `si_H_mat`, `si_freqs_band`, `si_sel_outputs`, `si_frf_est_used` in session state and clears any previous `modal_results`.
 - Extract stores `modal_results` (fn, xi, poles, mode_shapes, output_channels, freqs, H_measured, H_synthesis, nmse).
 - Four tabs: **CMIF** (log-scale, live from selected channels), **Stability Diagram** (scatter per class + CMIF background), **Mode Shapes** (summary table + stacked FRF overlays with optional modal contributions, NMSE per subplot), **Export** (downloadable CSV).
+
+#### Page 5 — MIMO EMA
+- Loads two CSV files directly (Run A: in-phase, Run B: out-of-phase); independent of landing-page data flow.
+- User assigns one input reference channel per run and common output channels.
+- Computes MIMO FRF matrix H (n_freqs, n_out, 2) via Welch or single-FFT H1 estimator.
+- Stacks matrix to (n_freqs, n_out × 2); reuses `plscf_poles` and `build_stability_table` unchanged.
+- SVD-based CMIF: `compute_mimo_cmif` returns σ₁, σ₂ curves; peaks from σ₁ seed mode estimates.
+- Residue matrix (n_out, 2, n_modes) reshaped post-extraction; ‖Run A‖ vs ‖Run B‖ column norms classify each mode as Symmetric (S) or Antisymmetric (A).
+- Four tabs: **CMIF** (σ₁, σ₂ curves), **Stability Diagram** (CMIF σ₁ background), **Mode Shapes** (S/A label, per-reference FRF overlays, NMSE), **Export** (downloadable CSV named `<analysis_name>_mimo_results.csv`).
+- Stores `mimo_modal_results` for Page 6 and Page 7.
 
 ### Spectral analysis formulas (page 3)
 

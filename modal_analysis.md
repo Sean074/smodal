@@ -9,7 +9,7 @@
 | 2 | FFT | Implemented |
 | 3 | Spectral Analysis | Implemented |
 | 4 | System Identification (SIMO EMA) | Implemented |
-| 5 | Integration / Differentiation | Stub |
+| 5 | MIMO EMA (Multi-Reference System Identification) | Stub |
 | 6 | Modal Assurance Criteria (MAC) | Stub |
 | 7 | Wireframe Mode Shape | Stub |
 
@@ -229,11 +229,101 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 
 ---
 
-## Page 5 — Integration / Differentiation (stub)
+## Page 5 — MIMO EMA (Multi-Reference System Identification)
 
-Signal integration and differentiation — not yet implemented.
+Multiple-Input Multiple-Output Experimental Modal Analysis using two simultaneous-shaker sine excitation patterns (in-phase and 180° out-of-phase). Assumes symmetric input placement and a near-symmetric structure.
 
-Planned: convert between acceleration, velocity, and displacement domains.
+Two-column layout (1:3 ratio): narrow controls left, charts right.
+
+### Data requirements
+- Two CSV files loaded directly on this page (independent of the landing page):
+  - **Run A** — in-phase excitation: all shakers driven at 0° relative phase.
+  - **Run B** — out-of-phase excitation: shakers driven at 0° and 180° relative phase.
+- Each CSV must contain at least one force (input) channel and one or more acceleration (output) channels.
+- Both runs must share the same output channel names and sample rate.
+
+### Channel assignment
+- **Run A input channel** — force reference for the in-phase run.
+- **Run B input channel** — force reference for the out-of-phase run.
+- **Output channels** multiselect — channels present in both runs.
+
+### Controls
+
+**Step 1 — Stability Diagram**
+- **FRF method** radio: Welch / Single FFT (consistent with Page 3 options).
+- **Welch controls** (if selected): Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar).
+- **Frequency range** slider.
+- **Max model order** slider (4–100, step 2, default 40).
+- **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
+- **Build Stability Diagram** button.
+
+**Step 2 — Mode Specification**
+- **Number of modes** integer input (auto-populated from count of deduplicated green stable poles).
+- **Mode initial estimates** editable table — fn (Hz), ξ (%), source (read-only).
+  - Pre-populated from green stable poles (1 % frequency tolerance), sorted by fn.
+  - Falls back to SVD-CMIF σ₁ peaks if poles are insufficient.
+- **Extract Mode Shapes** button.
+
+### Four tabs
+
+#### CMIF
+- SVD-based Complex Mode Indicator Function computed from the stacked MIMO FRF matrix.
+- Both singular value curves (σ₁ ≥ σ₂) plotted on log y-axis vs frequency.
+  - σ₁: all modes visible; σ₂: resolves repeated / closely-spaced modes.
+- Peaks from σ₁ used for initial mode frequency estimates.
+
+#### Stability Diagram
+- Same four-class pole classification as Page 4 (new / freq-stable / freq+damp-stable / fully-stable).
+- MIMO FRF matrix reshaped to (n_freqs, n_out × 2) before sweep; reuses `build_stability_table`.
+- SVD-CMIF σ₁ curve shown in background for reference.
+
+#### Mode Shapes
+- Summary table: Mode #, fn (Hz), ξ (%), type (Symmetric / Antisymmetric), |φ| and ∠φ (°) per output per reference.
+- Mode type: if Run A residues dominate → Symmetric (S-mode); Run B residues dominate → Antisymmetric (A-mode).
+- Stacked FRF subplots (magnitude dB, phase °) per output per reference: measured (solid) vs synthesised (dashed red), optional modal contributions, NMSE annotation.
+
+#### Export
+- Table of identified modes (fn, ξ, type, amplitude and phase per output per reference) downloadable as `<analysis_name>_mimo_results.csv`.
+- Results stored in `mimo_modal_results` session state for Page 6 (MAC) and Page 7 (Wireframe).
+
+### Algorithm — Multi-reference pLSCF (PolyMAX)
+
+#### FRF matrix construction
+- Run A FRFs: H_A(ω) shape (n_freqs, n_out) — H1 estimator from in-phase reference to each output.
+- Run B FRFs: H_B(ω) shape (n_freqs, n_out) — same, from out-of-phase reference.
+- Stacked MIMO matrix: H(ω) = [H_A | H_B] reshaped to (n_freqs, n_out × 2).
+
+#### SVD-CMIF
+- At each frequency line: SVD of the (n_out × 2) H slice → singular values σ₁, σ₂.
+- Implemented in new function `compute_mimo_cmif(H_3d)` in `core/sysid.py`.
+
+#### Pole identification
+- z-domain right matrix fraction: `H(z) = B(z) · A(z)⁻¹`.
+- Normal equations assembled across all (n_out × 2) output-reference pairs simultaneously.
+- Reuses `plscf_poles(H_reshaped, freqs, n_order)` from `core/sysid.py` without modification.
+- Physical filter: Im(s) > 0, 0 < ξ < 30 %, fn within analysis band.
+
+#### Residue extraction and mode classification
+- `extract_residues(H_reshaped, freqs, poles)` returns (n_out × 2, n_modes) complex residues.
+- Reshaped to (n_out, 2, n_modes); per mode, ‖Run A column‖ vs ‖Run B column‖ determines S / A label.
+- FRF synthesis and NMSE computed per output per reference.
+
+#### Best-practice rationale
+- PolyMAX (multi-reference pLSCF) is the current industry standard for MIMO EMA (aircraft GVT, automotive NVH).
+- Symmetric / antisymmetric excitation exploits structural near-symmetry to pre-separate mode families, reducing coupling between closely-spaced symmetric and antisymmetric modes in the stability diagram.
+- Common denominator polynomial enforces global consistency of natural frequencies across all reference-output FRF pairs.
+
+### Session state
+| Key | Set by | Consumed by |
+|-----|--------|-------------|
+| `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build, Export) |
+| `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
+| `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
+| `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
 
