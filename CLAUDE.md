@@ -51,6 +51,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
 | `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
+| `modal_results` | `4_OMA.py` | `6_MAC.py`, `7_Wireframe.py` |
 
 Every page (except `7_Wireframe.py`) guards against missing data with:
 ```python

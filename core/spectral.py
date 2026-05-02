@@ -93,7 +93,7 @@ def compute_welch_quantities(
 
     freqs, Gxx = welch(x, **kw)
     _, Gyy = welch(y, **kw)
-    _, Gyx = csd(y, x, **kw)   # Sy * conj(Sx)
+    _, Gyx = csd(x, y, **kw)   # Sx* · Sy = H · Gxx  (scipy: csd(a,b) = E[a* · b])
     Gxy = np.conj(Gyx)
 
     Gxx_safe = np.maximum(Gxx, eps)
