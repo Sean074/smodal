@@ -10,20 +10,25 @@ def compute_cmif(H: np.ndarray) -> np.ndarray:
     return np.linalg.norm(H, axis=1)
 
 
-def compute_mimo_cmif(H: np.ndarray, n_out: int) -> np.ndarray:
-    """SVD-based CMIF for MIMO FRF matrix.
+def deduplicate_stable_poles(stab_results: list[dict], tol: float = 0.01) -> list[dict]:
+    """Extract and deduplicate fully-stable poles from a stability table.
 
-    H: (n_freqs, n_out * 2) complex — stacked [H_A | H_B]
-    Returns (n_freqs, 2) real — singular values σ₁, σ₂ per frequency line.
-    σ₁ reveals all modes; σ₂ resolves repeated / closely-spaced modes.
+    Returns list of dicts with keys fn_hz, xi_pct, source — sorted by frequency.
     """
-    n_freqs = H.shape[0]
-    sv = np.zeros((n_freqs, 2))
-    for i in range(n_freqs):
-        s = np.linalg.svd(H[i].reshape(2, n_out).T, compute_uv=False)
-        sv[i, 0] = s[0]
-        sv[i, 1] = s[1] if len(s) > 1 else 0.0
-    return sv
+    green_poles = []
+    for row in stab_results:
+        for k, s in enumerate(row["stability"]):
+            if s == "stable_all":
+                green_poles.append({
+                    "fn_hz": float(row["fn"][k]),
+                    "xi_pct": float(row["xi"][k]) * 100.0,
+                    "source": f"order {row['order']}",
+                })
+    deduped: list[dict] = []
+    for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
+        if not deduped or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > tol:
+            deduped.append(g)
+    return deduped
 
 
 def cmif_peak_estimates(cmif: np.ndarray, freqs: np.ndarray, n_modes: int) -> list[dict]:

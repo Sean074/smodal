@@ -32,7 +32,7 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, PSD, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
-| `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX), inline pre-processing | Implemented |
+| `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX) | Implemented |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
 | `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
 
@@ -49,14 +49,15 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `output_channels` | `app.py` | all pages |
 | `sample_rate` | `app.py` | all pages |
 | `analysis_name`, `analyst`, `description`, `comment` | `app.py` | log save |
-| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py`, `4_SIMO.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
-| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached), `4_SIMO.py` |
+| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
+| `si_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (charts, Extract) |
 | `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
-| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) |
+| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) — shape `(n_freqs, 2)` |
 | `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
-| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Build) |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
@@ -86,9 +87,22 @@ if st.session_state.get("df") is None:
 - `compute_sample_rate(time)` — estimates Hz from mean `diff` of the time array.
 - `compute_summary(df, input_ch, output_chs)` — returns a list of dicts (one per channel) with samples, sample rate, duration, min/max time, min/max value, RMS.
 
+#### `core/preprocess.py`
+- `build_butter_sos(ftype, order, cutoffs, fs)` — constructs a Butterworth SOS filter; `cutoffs` is a float (Hz) for LP/HP or `[low, high]` for BP/BS.
+- `trim_and_filter(df, t_min, t_max, ftype, order, cutoffs, fs)` — trims a DataFrame to the time window then applies the filter in-place; `ftype='None'` or `cutoffs=None` skips filtering.
+
+#### `core/spectral.py`
+- `compute_fft(signal, sample_rate, window)` — applies a scipy window and returns `(freqs_hz, fft_complex)` via `np.fft.rfft`.
+- `compute_psd(signal, sample_rate, nperseg, noverlap, window)` — single-channel auto-PSD via Welch; returns `(freqs_hz, Pxx)`.
+- `compute_spectral_quantities(Sx, Sy)` — computes single-realisation spectral quantities from complex FFT arrays; returns dict with `Gxx`, `Gyy`, `Gyx`, `Gxy`, `H1`, `H2`, `Hv`, `gamma2`.
+- `compute_welch_quantities(x, y, sample_rate, nperseg, noverlap, window)` — Welch-averaged spectral quantities using `scipy.signal.welch` and `csd`; returns the same keys as above plus `freqs`.
+
+Windows supported by `compute_fft`: `uniform` (boxcar), `hanning`, `flattop`, `force` (hann), `exponential`.
+Windows supported by `compute_welch_quantities`: any scipy window name (typically `hann`, `flattop`, `boxcar`).
+
 #### `core/sysid.py`
 - `compute_cmif(H)` — `np.linalg.norm(H, axis=1)`; Euclidean norm per frequency line (equivalent to first singular value of a row vector).
-- `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
+- `deduplicate_stable_poles(stab_results, tol)` — extracts and deduplicates fully-stable (`stable_all`) poles from a stability table; returns list of dicts with `fn_hz`, `xi_pct`, `source`.
 - `cmif_peak_estimates(cmif, freqs, n_modes)` — top-N peaks by `scipy.signal.find_peaks` prominence; falls back to evenly spaced frequencies.
 - `poles_from_estimates(fn_hz, xi)` — converts fn (Hz) and ξ arrays to continuous-time complex poles `s = −ξωₙ + jωd`.
 - `plscf_poles(H, freqs, n_order)` — pLSCF for one model order; real-valued normal equations, monic denominator, `numpy.roots`, `s = log(z)/Δt`; returns physical poles only.
@@ -98,13 +112,13 @@ if st.session_state.get("df") is None:
 - `synthesize_frf(freqs, poles, residues)` — partial-fraction sum; returns `(n_freqs, n_outputs)` complex.
 - `modal_fit_nmse(H_measured, H_syn)` — NMSE per output channel in dB (lower = better).
 
-#### `core/spectral.py`
-- `compute_fft(signal, sample_rate, window)` — applies a scipy window and returns `(freqs_hz, fft_complex)` via `np.fft.rfft`.
-- `compute_spectral_quantities(Sx, Sy)` — computes single-realisation spectral quantities from complex FFT arrays; returns dict with `Gxx`, `Gyy`, `Gyx`, `Gxy`, `H1`, `H2`, `Hv`, `gamma2`.
-- `compute_welch_quantities(x, y, sample_rate, nperseg, noverlap, window)` — Welch-averaged spectral quantities using `scipy.signal.welch` and `csd`; returns the same keys as above plus `freqs`.
+#### `core/mimo.py`
+- `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
+- `compute_mimo_frfs(run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs, frf_method, frf_est, n_seg, ovlp_pct, welch_win)` — assembles the stacked MIMO FRF matrix from two processed runs; returns `(H_stacked, freqs_full)` where `H_stacked` is `(n_freqs, n_out * 2)`.
 
-Windows supported by `compute_fft`: `uniform` (boxcar), `hanning`, `flattop`, `force` (hann), `exponential`.
-Windows supported by `compute_welch_quantities`: any scipy window name (typically `hann`, `flattop`, `boxcar`).
+#### `core/plots.py`
+- `fft_subplot(df_proc, channels, fs, fmax)` — returns a stacked Plotly figure of magnitude FFT (dB) for each channel.
+- `frf_subplot(df_proc, input_ch, output_chs, fs, fmax)` — returns a stacked magnitude + phase FRF figure (H1 estimator, single FFT) for each output channel.
 
 ### Input data format
 

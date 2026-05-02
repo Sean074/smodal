@@ -28,7 +28,7 @@ for key, val in _DEFAULTS.items():
 # ---------------------------------------------------------------------------
 # Page header
 # ---------------------------------------------------------------------------
-st.title("Modal Analysis — System Identification")
+st.title("Modal Analysis — System Identification: SIMO and MIMO Swept Sine Analysis")
 st.markdown("---")
 
 # ---------------------------------------------------------------------------
@@ -57,6 +57,8 @@ st.header("Load Data")
 st.caption(
     "CSV format: one column named **time** (seconds), remaining columns are data channels. "
     "Multiple files may be merged if they share the same time axis."
+    "NOTE: for MIMO do NOT load data here and" \
+    " go straight to the MIMO page to load multiple files and assign channels."
 )
 
 uploaded_files = st.file_uploader(

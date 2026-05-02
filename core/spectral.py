@@ -69,6 +69,18 @@ def compute_spectral_quantities(Sx: np.ndarray, Sy: np.ndarray) -> dict:
                 H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
 
 
+def compute_psd(
+    signal: np.ndarray,
+    sample_rate: float,
+    nperseg: int,
+    noverlap: int,
+    window: str = "hann",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return (freqs_hz, Pxx) auto-power spectral density via Welch averaging."""
+    from scipy.signal import welch
+    return welch(signal, fs=sample_rate, window=window, nperseg=nperseg, noverlap=noverlap)
+
+
 def compute_welch_quantities(
     x: np.ndarray,
     y: np.ndarray,

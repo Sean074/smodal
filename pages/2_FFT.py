@@ -2,9 +2,7 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
-from scipy.signal import welch as scipy_welch
-
-from core.spectral import compute_fft
+from core.spectral import compute_fft, compute_psd
 
 st.set_page_config(page_title="FFT", layout="wide")
 st.title("FFT")
@@ -169,10 +167,7 @@ if compute_btn:
         _freqs = None
         for ch in selected_channels:
             signal = df[ch].values.astype(float)
-            f, Pxx = scipy_welch(
-                signal, fs=sample_rate, window=welch_window,
-                nperseg=nperseg, noverlap=noverlap,
-            )
+            f, Pxx = compute_psd(signal, sample_rate, nperseg, noverlap, welch_window)
             _psds[ch] = Pxx
             _freqs = f
 
@@ -299,10 +294,7 @@ else:  # Welch
         freqs = None
         for ch in plot_channels:
             signal = df[ch].values.astype(float)
-            f, Pxx = scipy_welch(
-                signal, fs=sample_rate, window=welch_window,
-                nperseg=nperseg, noverlap=noverlap,
-            )
+            f, Pxx = compute_psd(signal, sample_rate, nperseg, noverlap, welch_window)
             psds[ch] = Pxx
             freqs = f
 

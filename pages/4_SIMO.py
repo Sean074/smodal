@@ -4,10 +4,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+from core.spectral import compute_fft, compute_spectral_quantities, compute_welch_quantities
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
-    compute_cmif,
+    deduplicate_stable_poles,
     extract_residues,
     modal_fit_nmse,
     poles_from_estimates,
@@ -22,11 +23,10 @@ if st.session_state.get("df") is None:
     st.warning("No data loaded. Return to the Landing Page and load a data file.")
     st.stop()
 
-res3 = st.session_state.get("spectral_results")
-if res3 is None:
+processed_df = st.session_state.get("processed_df")
+if processed_df is None:
     st.warning(
-        "No spectral results found. Visit **Page 3 — Spectral Analysis**, "
-        "select output channels, and click **Compute**."
+        "No processed data found. Visit **Page 1 — Time History** first."
     )
     st.stop()
 
@@ -34,9 +34,7 @@ input_channel: str = st.session_state.get("input_channel", "")
 output_channels: list = st.session_state.get("output_channels", [])
 sample_rate: float = st.session_state.get("sample_rate", 1.0)
 
-available_outputs = [ch for ch in res3["params"].get("output_channels", [])
-                     if ch in res3["channels"]]
-freqs: np.ndarray = res3["freqs"]
+available_outputs = [ch for ch in output_channels if ch in processed_df.columns]
 eps = np.finfo(float).tiny
 
 # ── Layout ────────────────────────────────────────────────────────────────────
@@ -46,8 +44,21 @@ ctrl_col, chart_col = st.columns([1, 3])
 with ctrl_col:
     st.subheader("Step 1 — Stability Diagram")
 
-    fit_method = st.radio("Curve fitting method", ["pLSCF", "ERA"],
-                          horizontal=True, key="si_method")
+    frf_method = st.radio("FRF method", ["Welch", "Single FFT"],
+                          horizontal=True, key="si_frf_method")
+
+    if frf_method == "Welch":
+        n_seg = st.number_input("Segments", min_value=2, max_value=50,
+                                value=8, step=1, key="si_segments")
+        ovlp_pct = st.slider("Overlap (%)", min_value=0, max_value=90,
+                             value=50, step=5, key="si_overlap")
+        welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"],
+                                 key="si_welch_win")
+        n_proc = len(processed_df)
+        nperseg_preview = max(4, n_proc // n_seg)
+        df_hz = sample_rate / nperseg_preview
+        st.caption(f"Δf ≈ {df_hz:.3f} Hz  |  {nperseg_preview} samples/segment")
+
     frf_est = st.radio("FRF estimator", ["H1", "H2", "Hv"],
                        horizontal=True, key="si_frf_est")
 
@@ -56,7 +67,8 @@ with ctrl_col:
         default=available_outputs, key="si_outputs",
     )
 
-    f_nyq = float(freqs[-1])
+    si_freqs_cached = st.session_state.get("si_freqs")
+    f_nyq = float(si_freqs_cached[-1]) if si_freqs_cached is not None else sample_rate / 2.0
     f_step = round(f_nyq / 500, 4) or 0.01
     f_min, f_max = st.slider(
         "Frequency range (Hz)", min_value=0.0, max_value=f_nyq,
@@ -82,43 +94,27 @@ with ctrl_col:
 
     stab_results = st.session_state.get("si_stability_table")
     cmif_cache = st.session_state.get("si_cmif")
+    freqs_cache = st.session_state.get("si_freqs")
+    cmif_for_peaks = cmif_cache[:, 0] if cmif_cache is not None else None
 
-    # Auto-suggest n_modes from green poles in last stability run
-    if stab_results is not None:
-        green_poles = []
-        for row in stab_results:
-            for k, s in enumerate(row["stability"]):
-                if s == "stable_all":
-                    green_poles.append({"fn_hz": float(row["fn"][k]),
-                                        "xi_pct": float(row["xi"][k]) * 100.0,
-                                        "source": f"order {row['order']}"})
-        # Deduplicate by frequency (1 % tolerance)
-        deduped: list[dict] = []
-        for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
-            if not deduped or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > 0.01:
-                deduped.append(g)
-        auto_n = max(1, len(deduped))
-    else:
-        deduped = []
-        auto_n = 1
+    deduped = deduplicate_stable_poles(stab_results) if stab_results is not None else []
+    auto_n = max(1, len(deduped))
 
     n_modes = st.number_input("Number of modes", min_value=1, max_value=20,
                               value=auto_n, step=1, key="si_n_modes")
 
-    # Build initial estimates table
     if len(deduped) >= n_modes:
         init_rows = deduped[:n_modes]
     elif len(deduped) > 0:
-        # pad with CMIF peaks
-        if cmif_cache is not None:
-            extra = cmif_peak_estimates(cmif_cache, freqs, n_modes - len(deduped))
+        if cmif_for_peaks is not None:
+            extra = cmif_peak_estimates(cmif_for_peaks, freqs_cache, n_modes - len(deduped))
             init_rows = deduped + extra
         else:
             init_rows = deduped + [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
                                    for _ in range(n_modes - len(deduped))]
     else:
-        if cmif_cache is not None:
-            init_rows = cmif_peak_estimates(cmif_cache, freqs, n_modes)
+        if cmif_for_peaks is not None:
+            init_rows = cmif_peak_estimates(cmif_for_peaks, freqs_cache, n_modes)
         else:
             init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
                          for _ in range(n_modes)]
@@ -150,7 +146,28 @@ if build_btn:
         st.error("Select at least one output channel.")
         st.stop()
 
-    H_mat = np.column_stack([res3["channels"][ch][frf_est] for ch in sel_outputs])
+    if frf_method == "Welch":
+        n_proc = len(processed_df)
+        nperseg = max(4, n_proc // n_seg)
+        noverlap = int(nperseg * ovlp_pct / 100)
+        H_cols: list = []
+        last_res: dict = {}
+        for ch in sel_outputs:
+            last_res = compute_welch_quantities(
+                processed_df[input_channel].values,
+                processed_df[ch].values,
+                sample_rate, nperseg, noverlap, welch_win,
+            )
+            H_cols.append(last_res[frf_est])
+        freqs = last_res["freqs"]
+    else:  # Single FFT
+        freqs, Sx = compute_fft(processed_df[input_channel].values, sample_rate, window="hanning")
+        H_cols = []
+        for ch in sel_outputs:
+            _, Sy = compute_fft(processed_df[ch].values, sample_rate, window="hanning")
+            H_cols.append(compute_spectral_quantities(Sx, Sy)[frf_est])
+
+    H_mat = np.column_stack(H_cols)
     mask = (freqs >= f_min) & (freqs <= f_max)
     H_band = H_mat[mask]
     f_band = freqs[mask]
@@ -159,13 +176,15 @@ if build_btn:
         table = build_stability_table(
             H_band, f_band, sample_rate,
             max_order=max_order,
-            method=fit_method.lower(),
+            method="plscf",
             df_thr=df_thr,
             dd_thr=dd_thr,
             mac_thr=mac_thr,
         )
-        cmif_vals = compute_cmif(H_mat)
+        sigma1 = np.linalg.norm(H_mat, axis=1)
+        cmif_vals = np.column_stack([sigma1, np.zeros_like(sigma1)])
 
+    st.session_state["si_freqs"] = freqs
     st.session_state["si_stability_table"] = table
     st.session_state["si_cmif"] = cmif_vals
     st.session_state["si_H_mat"] = H_mat
@@ -178,7 +197,8 @@ if build_btn:
 # ── Extract Mode Shapes ───────────────────────────────────────────────────────
 if extract_btn:
     H_mat = st.session_state.get("si_H_mat")
-    if H_mat is None:
+    freqs = st.session_state.get("si_freqs")
+    if H_mat is None or freqs is None:
         st.error("Build the stability diagram first.")
         st.stop()
 
@@ -222,6 +242,7 @@ with chart_col:
     stab_results = st.session_state.get("si_stability_table")
     cmif_vals = st.session_state.get("si_cmif")
     modal_res = st.session_state.get("modal_results")
+    freqs_chart = st.session_state.get("si_freqs")
 
     tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(
         ["CMIF", "Stability Diagram", "Mode Shapes", "Export"]
@@ -229,23 +250,21 @@ with chart_col:
 
     # ── CMIF ──────────────────────────────────────────────────────────────────
     with tab_cmif:
-        if not sel_outputs:
+        if cmif_vals is None or freqs_chart is None:
             st.info("Select output channels and build the stability diagram.")
         else:
-            H_live = np.column_stack([res3["channels"][ch][frf_est]
-                                      for ch in sel_outputs if ch in res3["channels"]])
-            cmif_live = compute_cmif(H_live) if H_live.ndim == 2 else np.abs(H_live)
-            band_mask = (freqs >= f_min) & (freqs <= f_max)
+            band_mask = (freqs_chart >= f_min) & (freqs_chart <= f_max)
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=freqs[band_mask], y=cmif_live[band_mask], mode="lines",
-                line=dict(color="#1f77b4", width=1.5), name="CMIF (σ₁)",
+                x=freqs_chart[band_mask], y=cmif_vals[band_mask, 0], mode="lines",
+                line=dict(color="#1f77b4", width=1.5), name="σ₁",
             ))
-            fig.update_yaxes(type="log", title_text="CMIF (σ₁)")
+            fig.update_yaxes(type="log", title_text="CMIF")
             fig.update_xaxes(title_text="Frequency (Hz)", range=[f_min, f_max])
             fig.update_layout(
                 height=350, margin=dict(t=30, b=50, l=60, r=20),
                 title="Complex Mode Indicator Function",
+                legend=dict(orientation="h", y=-0.15),
             )
             st.plotly_chart(fig, use_container_width=True)
             st.caption("Peaks indicate candidate mode locations.")
@@ -271,11 +290,11 @@ with chart_col:
             fig = go.Figure()
 
             # Background CMIF
-            band_mask = (freqs >= f_min) & (freqs <= f_max)
-            if cmif_vals is not None:
-                cmif_norm = cmif_vals / (np.max(cmif_vals) + eps) * (max_order * 0.9)
+            if cmif_vals is not None and freqs_chart is not None:
+                band_mask = (freqs_chart >= f_min) & (freqs_chart <= f_max)
+                cmif_norm = cmif_vals[:, 0] / (np.max(cmif_vals[:, 0]) + eps) * (max_order * 0.9)
                 fig.add_trace(go.Scatter(
-                    x=freqs[band_mask], y=cmif_norm[band_mask], mode="lines",
+                    x=freqs_chart[band_mask], y=cmif_norm[band_mask], mode="lines",
                     line=dict(color="rgba(150,150,150,0.3)", width=1),
                     name="CMIF (bg)", showlegend=False,
                 ))
@@ -304,7 +323,7 @@ with chart_col:
                 height=500,
                 margin=dict(t=30, b=50, l=60, r=20),
                 legend=dict(orientation="h", y=-0.12),
-                title=f"Stability Diagram — {fit_method}",
+                title="Stability Diagram — pLSCF",
             )
             st.plotly_chart(fig, use_container_width=True)
 
