@@ -6,6 +6,7 @@
 
 # Planned features / enhancements
 
+0. Data input format. current default is csv.  Possible that data from test equipment will be in universal files *.unv. Need to decide if the data is converted to a csv or read directly as a panda.
 1. Allow users to pick mode frequencies directly on the CMIF plot and have those added to the stability diagram estimates table.
 2. Add Operational Modal Analysis (OMA) support — ambient excitation with no measured input force. ERA is the natural starting point as it does not require a measured input.
 3. Extend to MIMO Random — two independent broadband random inputs; FRF via H1 estimator with Welch averaging; requires good coherence to overcome leakage.

@@ -8,6 +8,7 @@ from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
     compute_cmif,
+    deduplicate_stable_poles,
     extract_residues,
     modal_fit_nmse,
     poles_from_estimates,
@@ -84,23 +85,8 @@ with ctrl_col:
     cmif_cache = st.session_state.get("si_cmif")
 
     # Auto-suggest n_modes from green poles in last stability run
-    if stab_results is not None:
-        green_poles = []
-        for row in stab_results:
-            for k, s in enumerate(row["stability"]):
-                if s == "stable_all":
-                    green_poles.append({"fn_hz": float(row["fn"][k]),
-                                        "xi_pct": float(row["xi"][k]) * 100.0,
-                                        "source": f"order {row['order']}"})
-        # Deduplicate by frequency (1 % tolerance)
-        deduped: list[dict] = []
-        for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
-            if not deduped or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > 0.01:
-                deduped.append(g)
-        auto_n = max(1, len(deduped))
-    else:
-        deduped = []
-        auto_n = 1
+    deduped = deduplicate_stable_poles(stab_results) if stab_results is not None else []
+    auto_n = max(1, len(deduped))
 
     n_modes = st.number_input("Number of modes", min_value=1, max_value=20,
                               value=auto_n, step=1, key="si_n_modes")

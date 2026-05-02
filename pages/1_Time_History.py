@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import streamlit as st
-from scipy.signal import butter, sosfiltfilt, sosfreqz
+from scipy.signal import sosfiltfilt, sosfreqz
+from core.preprocess import build_butter_sos
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
@@ -91,26 +92,12 @@ with filt_col:
 # ---------------------------------------------------------------------------
 # Build filter once
 # ---------------------------------------------------------------------------
-def _build_sos(ftype, order, f_lo, f_hi, nyq):
-    btype_map = {
-        "Lowpass": "low",
-        "Highpass": "high",
-        "Bandpass": "bandpass",
-        "Bandstop": "bandstop",
-    }
-    btype = btype_map[ftype]
-    if btype in ("low", "high"):
-        Wn = f_lo / nyq
-    else:
-        Wn = [f_lo / nyq, f_hi / nyq]
-    return butter(order, Wn, btype=btype, output="sos")
-
-
 sos = None
 filter_error = None
 if apply_filter:
     try:
-        sos = _build_sos(filter_type, order, f_lo, f_hi, nyq)
+        _cutoffs = f_lo if filter_type in ("Lowpass", "Highpass") else [f_lo, f_hi]
+        sos = build_butter_sos(filter_type, order, _cutoffs, fs)
     except Exception as e:
         filter_error = str(e)
 

@@ -2,15 +2,16 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy.signal import butter, sosfiltfilt
 import streamlit as st
 
 from core.data_loader import load_csv, compute_sample_rate
-from core.spectral import compute_fft, compute_spectral_quantities, compute_welch_quantities
+from core.mimo import compute_mimo_cmif, compute_mimo_frfs
+from core.plots import fft_subplot, frf_subplot
+from core.preprocess import trim_and_filter
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
-    compute_mimo_cmif,
+    deduplicate_stable_poles,
     extract_residues,
     modal_fit_nmse,
     poles_from_estimates,
@@ -21,32 +22,6 @@ st.set_page_config(page_title="MIMO EMA", layout="wide")
 st.title("MIMO — Multi-Reference System Identification (EMA)")
 
 eps = np.finfo(float).tiny
-
-
-# ── Helper: apply pre-processing to a DataFrame ───────────────────────────────
-def _preprocess(
-    df: pd.DataFrame,
-    t_min: float,
-    t_max: float,
-    ftype: str,
-    forder: int,
-    cutoffs,
-    fs: float,
-) -> pd.DataFrame:
-    proc = df[(df["time"] >= t_min) & (df["time"] <= t_max)].copy().reset_index(drop=True)
-    if ftype == "None" or cutoffs is None:
-        return proc
-    btype_map = {
-        "Lowpass": "low",
-        "Highpass": "high",
-        "Bandpass": "band",
-        "Bandstop": "bandstop",
-    }
-    sos = butter(forder, cutoffs, btype=btype_map[ftype], fs=fs, output="sos")
-    for col in proc.columns:
-        if col != "time":
-            proc[col] = sosfiltfilt(sos, proc[col].values)
-    return proc
 
 
 # ── Section A: File loading ────────────────────────────────────────────────────
@@ -215,8 +190,8 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
                 and not (isinstance(cutoff_params, list) and cutoff_params[0] >= cutoff_params[1])
             )
             if filter_active:
-                ra_filt = _preprocess(run_a, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
-                rb_filt = _preprocess(run_b, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+                ra_filt = trim_and_filter(run_a, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+                rb_filt = trim_and_filter(run_b, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
 
             n_rows_prev = len(preview_cols)
             fig_prev = make_subplots(
@@ -304,71 +279,7 @@ def _preview_proc(run_df):
     )
     _ftype = filter_type if _cutoffs_ok else "None"
     _cparams = cutoff_params if _cutoffs_ok else None
-    return _preprocess(run_df, t_min, t_max, _ftype, filter_order, _cparams, fs)
-
-
-def _fft_subplot(df_p, channels, fmax):
-    n_ch = len(channels)
-    fig = make_subplots(
-        rows=n_ch, cols=1, shared_xaxes=True,
-        vertical_spacing=0.04, subplot_titles=channels,
-    )
-    for i, ch in enumerate(channels):
-        if ch not in df_p.columns:
-            continue
-        f, F = compute_fft(df_p[ch].values, fs, "uniform")
-        mask = f <= fmax
-        fig.add_trace(
-            go.Scatter(
-                x=f[mask], y=20 * np.log10(np.maximum(np.abs(F[mask]), eps)),
-                mode="lines", line=dict(width=1.5), showlegend=False,
-            ),
-            row=i + 1, col=1,
-        )
-        fig.update_yaxes(title_text="|FFT| (dB)", row=i + 1, col=1)
-        if i == n_ch - 1:
-            fig.update_xaxes(title_text="Frequency (Hz)", row=i + 1, col=1)
-    fig.update_layout(height=max(250, 200 * n_ch), margin=dict(t=30, b=50, l=70, r=20))
-    return fig
-
-
-def _frf_subplot(df_p, input_ch, output_chs, fmax):
-    n_rows = len(output_chs) * 2
-    titles = []
-    for ch in output_chs:
-        titles += [f"|H({input_ch}→{ch})| (dB)", f"∠H({input_ch}→{ch}) (°)"]
-    fig = make_subplots(
-        rows=n_rows, cols=1, shared_xaxes=True,
-        vertical_spacing=0.04, subplot_titles=titles,
-    )
-    f, Sx = compute_fft(df_p[input_ch].values, fs, "uniform")
-    mask = f <= fmax
-    for i, ch in enumerate(output_chs):
-        if ch not in df_p.columns:
-            continue
-        _, Sy = compute_fft(df_p[ch].values, fs, "uniform")
-        H = compute_spectral_quantities(Sx, Sy)["H1"]
-        row_m, row_p = i * 2 + 1, i * 2 + 2
-        fig.add_trace(
-            go.Scatter(
-                x=f[mask], y=20 * np.log10(np.maximum(np.abs(H[mask]), eps)),
-                mode="lines", line=dict(width=1.5), showlegend=False,
-            ),
-            row=row_m, col=1,
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=f[mask], y=np.degrees(np.angle(H[mask])),
-                mode="lines", line=dict(width=1.5), showlegend=False,
-            ),
-            row=row_p, col=1,
-        )
-        fig.update_yaxes(title_text="|H| (dB)", row=row_m, col=1)
-        fig.update_yaxes(title_text="Phase (°)", row=row_p, col=1)
-        if row_p == n_rows:
-            fig.update_xaxes(title_text="Frequency (Hz)", row=row_p, col=1)
-    fig.update_layout(height=max(250, 200 * n_rows), margin=dict(t=30, b=50, l=70, r=20))
-    return fig
+    return trim_and_filter(run_df, t_min, t_max, _ftype, filter_order, _cparams, fs)
 
 
 # ── Section C: FFT Preview expander ───────────────────────────────────────────
@@ -383,13 +294,13 @@ with st.expander("FFT preview (optional — input & output channels, trimmed/fil
     with col_ffta:
         st.markdown("**Run A**")
         st.plotly_chart(
-            _fft_subplot(ra_fft, [input_a] + sel_outputs, fft_fmax),
+            fft_subplot(ra_fft, [input_a] + sel_outputs, fs, fft_fmax),
             use_container_width=True,
         )
     with col_fftb:
         st.markdown("**Run B**")
         st.plotly_chart(
-            _fft_subplot(rb_fft, [input_b] + sel_outputs, fft_fmax),
+            fft_subplot(rb_fft, [input_b] + sel_outputs, fs, fft_fmax),
             use_container_width=True,
         )
 
@@ -405,13 +316,13 @@ with st.expander("FRF preview (optional — H1 estimator, single FFT, trimmed/fi
     with col_frfa:
         st.markdown("**Run A**")
         st.plotly_chart(
-            _frf_subplot(ra_frf, input_a, sel_outputs, frf_fmax),
+            frf_subplot(ra_frf, input_a, sel_outputs, fs, frf_fmax),
             use_container_width=True,
         )
     with col_frfb:
         st.markdown("**Run B**")
         st.plotly_chart(
-            _frf_subplot(rb_frf, input_b, sel_outputs, frf_fmax),
+            frf_subplot(rb_frf, input_b, sel_outputs, fs, frf_fmax),
             use_container_width=True,
         )
 
@@ -484,29 +395,8 @@ with ctrl_col:
     freqs_cache = st.session_state.get("mimo_freqs")
 
     # Auto-suggest n_modes from green stable poles
-    if stab_results is not None:
-        green_poles = []
-        for row in stab_results:
-            for k, s in enumerate(row["stability"]):
-                if s == "stable_all":
-                    green_poles.append(
-                        {
-                            "fn_hz": float(row["fn"][k]),
-                            "xi_pct": float(row["xi"][k]) * 100.0,
-                            "source": f"order {row['order']}",
-                        }
-                    )
-        deduped: list[dict] = []
-        for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
-            if (
-                not deduped
-                or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > 0.01
-            ):
-                deduped.append(g)
-        auto_n = max(1, len(deduped))
-    else:
-        deduped = []
-        auto_n = 1
+    deduped = deduplicate_stable_poles(stab_results) if stab_results is not None else []
+    auto_n = max(1, len(deduped))
 
     n_modes = st.number_input(
         "Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="mimo_n_modes"
@@ -570,50 +460,14 @@ if build_btn:
             st.stop()
 
     with st.spinner("Pre-processing…"):
-        run_a_proc = _preprocess(run_a, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
-        run_b_proc = _preprocess(run_b, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+        run_a_proc = trim_and_filter(run_a, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+        run_b_proc = trim_and_filter(run_b, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
 
     with st.spinner("Computing FRFs…"):
-        H_A_cols: list[np.ndarray] = []
-        H_B_cols: list[np.ndarray] = []
-
-        if frf_method == "Welch":
-            n_proc = len(run_a_proc)
-            nperseg_build = max(4, n_proc // n_seg)
-            noverlap_build = int(nperseg_build * ovlp_pct / 100)
-            for ch in sel_outputs:
-                res_a = compute_welch_quantities(
-                    run_a_proc[input_a].values,
-                    run_a_proc[ch].values,
-                    fs,
-                    nperseg_build,
-                    noverlap_build,
-                    welch_win,
-                )
-                res_b = compute_welch_quantities(
-                    run_b_proc[input_b].values,
-                    run_b_proc[ch].values,
-                    fs,
-                    nperseg_build,
-                    noverlap_build,
-                    welch_win,
-                )
-                H_A_cols.append(res_a[frf_est])
-                H_B_cols.append(res_b[frf_est])
-            freqs_full: np.ndarray = res_a["freqs"]
-
-        else:  # Single FFT
-            freqs_full, Sx_a = compute_fft(run_a_proc[input_a].values, fs)
-            _, Sx_b = compute_fft(run_b_proc[input_b].values, fs)
-            for ch in sel_outputs:
-                _, Sy_a = compute_fft(run_a_proc[ch].values, fs)
-                _, Sy_b = compute_fft(run_b_proc[ch].values, fs)
-                H_A_cols.append(compute_spectral_quantities(Sx_a, Sy_a)[frf_est])
-                H_B_cols.append(compute_spectral_quantities(Sx_b, Sy_b)[frf_est])
-
-        H_A = np.column_stack(H_A_cols)          # (n_freqs, n_out)
-        H_B = np.column_stack(H_B_cols)          # (n_freqs, n_out)
-        H_stacked = np.column_stack([H_A, H_B])  # (n_freqs, n_out * 2)
+        H_stacked, freqs_full = compute_mimo_frfs(
+            run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs,
+            frf_method, frf_est, n_seg, ovlp_pct, welch_win,
+        )
 
     with st.spinner("Building stability diagram…"):
         band_mask = (freqs_full >= f_min_hz) & (freqs_full <= f_max_hz)
