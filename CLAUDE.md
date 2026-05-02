@@ -114,66 +114,7 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 
 ### Page details
 
-#### Page 1 — Time History
-- Butterworth filter (lowpass, highpass, bandpass, bandstop) via `scipy.signal.butter` / `sosfiltfilt`.
-- Time range slider trims the display window.
-- Stacked subplots (one per channel) or overlaid single plot.
-- Raw and filtered traces plotted together (filtered in red dashed).
-- Persists trimmed + filtered data as `processed_df` and filter metadata as `processing_info` for downstream pages.
-- Channel stats table (min, max, mean, RMS, std dev) in an expander.
-
-#### Page 2 — FFT
-- Data source toggle: raw full dataset or processed data from Time History page.
-- Window selection: uniform, Hanning, Flat Top, Force, Exponential.
-- Display mode: Gain/Phase or Real/Imaginary.
-- Log Y toggle for gain axis.
-- "Compute & Save FFT" button stores results in `fft_results` for use by Spectral Analysis.
-- Auto-plots using cached FFT if settings match; recomputes on-the-fly otherwise.
-
-#### Page 3 — Spectral Analysis
-- **Method** radio: Single FFT (requires `fft_results`) or Welch (reads directly from `processed_df` / `df`).
-- Two-column layout: controls (left narrow) + charts (right wide).
-- Welch controls: Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar), plus Δf caption.
-- **Five tabs:** Auto-Power (dB), PSD (unit²/Hz or dB, linear/log toggle), Cross-Power (magnitude + phase), FRF (H1/H2/Hv/All selector), Coherence.
-- Frequency range slider scoped to chart area.
-- Results cached in `spectral_results`; only recomputes when params change.
-- PSD tab: normalised one-sided PSD — Welch uses `scipy.signal.welch` directly; Single FFT uses `PSD = 2·|FFT|²/(fs·N)`.
-- Coherence tab: γ²=0.85 reference line; caption adapts to method (Welch gives meaningful coherence, Single FFT always yields γ²=1).
-
-#### Page 4 — System Identification (SIMO EMA)
-- Requires `spectral_results` from Page 3; guards against missing data.
-- Two-column layout (1:3): controls left, charts right.
-- **Step 1** — select method (pLSCF/ERA), FRF estimator, output channels, frequency range, max model order, stability thresholds; click **Build Stability Diagram**.
-- **Step 2** — n_modes (auto from green pole count), editable estimates table (fn Hz, ξ %, source); click **Extract Mode Shapes**.
-- Build stores `si_stability_table`, `si_cmif`, `si_H_mat`, `si_freqs_band`, `si_sel_outputs`, `si_frf_est_used` in session state and clears any previous `modal_results`.
-- Extract stores `modal_results` (fn, xi, poles, mode_shapes, output_channels, freqs, H_measured, H_synthesis, nmse).
-- Four tabs: **CMIF** (log-scale, live from selected channels), **Stability Diagram** (scatter per class + CMIF background), **Mode Shapes** (summary table + stacked FRF overlays with optional modal contributions, NMSE per subplot), **Export** (downloadable CSV).
-
-#### Page 5 — MIMO EMA
-- Loads Run A (in-phase) and Run B (out-of-phase) CSVs independently via file uploaders on the page — does not use landing-page session data.
-- Sample rate derived from Run A time column.
-- Channel assignment: separate input-channel selectboxes for Run A and Run B; shared output multiselect.
-- Three optional pre-processing expanders (all use the same trim + filter settings):
-  1. **Time history / filter** — time range slider, Butterworth filter controls, optional time history preview (Run A blue, Run B orange; filtered as dashed overlays).
-  2. **FFT preview** — two-column layout (Run A | Run B); input + each output channel FFT (dB, uniform window) stacked vertically; max-frequency slider.
-  3. **FRF preview** — two-column layout (Run A | Run B); magnitude (dB) + phase (°) per input/output pair stacked vertically; H1, single FFT; max-frequency slider.
-- **Step 1**: FRF method (Welch/Single FFT), FRF estimator (H1/H2/Hv), Welch controls, frequency range, max model order, stability thresholds → **Build Stability Diagram**.
-  - FRFs computed independently per run using the chosen SIMO estimator, then column-stacked: `H_stacked = [H_A | H_B]` shape `(n_freqs, n_out × 2)`.
-  - pLSCF sweep over stacked matrix; CMIF via SVD of per-frequency `(n_out × 2)` slice.
-- **Step 2**: n_modes (auto from green pole count), editable estimates table → **Extract Mode Shapes**.
-  - Residues reshaped to `(n_out, 2, n_modes)`; per mode, ‖Run A‖ vs ‖Run B‖ norm determines S/A type label.
-  - FRF synthesis and NMSE over full `(n_freqs, n_out × 2)` matrix.
-- Four tabs: **CMIF** (σ₁/σ₂ log-scale), **Stability Diagram** (same four-class scatter + σ₁ background), **Mode Shapes** (summary table + 4-row subplots per channel: Run A mag/phase, Run B mag/phase, with optional modal contributions and NMSE annotation), **Export** (downloadable CSV, stores `mimo_modal_results`).
-
-### Spectral analysis formulas (page 3)
-
-System model: `x(t) → h(t) → y(t)`
-
-- Input auto-power: `Gxx = Sx · Sx*`
-- Output auto-power: `Gyy = Sy · Sy*`
-- Cross-power: `Gyx = Sy · Sx*`, `Gxy = Sx · Sy*`
-- FRF estimators: `H1 = Gyx / Gxx`, `H2 = Gyy / Gxy`, `Hv` = geometric mean magnitude with H1 phase
-- Coherence: `γ² = |Gyx|² / (Gxx · Gyy)`
+Full UI spec, controls, algorithms, and session state per page are in `modal_analysis.md`. Worked signal-processing examples with runnable code are in `analysis_method.ipynb`.
 
 ### Wireframe geometry (page 7 — stub)
 

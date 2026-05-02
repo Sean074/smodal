@@ -235,6 +235,61 @@ Multiple-Input Multiple-Output Experimental Modal Analysis using two simultaneou
 
 Two-column layout (1:3 ratio): narrow controls left, charts right.
 
+---
+
+### Test background
+
+#### Shaker placement
+
+- Place shakers at locations with sufficient modal participation — avoid nodal points for the target modes.
+- Shaker positions must be **linearly independent** with respect to the target mode shapes (i.e., the two input locations must not simultaneously be nodes of the same mode).
+- Stinger rods must be used between the shaker and the structure to isolate the shaker mass and ensure predominantly axial force transmission.
+- Attach force transducers (load cells) directly at the structure–stinger interface. Impedance head sensors (combined force + acceleration) are preferred at each drive point.
+
+#### Phase conditions — the two runs
+
+| Run | Shaker 1 phase | Shaker 2 phase | Excites |
+|---|---|---|---|
+| **Run A — Symmetric** | 0° | 0° | Symmetric (in-phase) mode families |
+| **Run B — Asymmetric** | 0° | 180° | Antisymmetric (out-of-phase) mode families |
+
+Two sweeps with different phase relationships between the shakers provide the minimum required number of independent excitation vectors to compute the full 2-column MIMO FRF matrix.
+
+#### Swept sine parameters
+
+| Parameter | Typical value | Notes |
+|---|---|---|
+| Sweep type | Linear or logarithmic | Log sweep preferred for lightly damped structures |
+| Sweep rate | ≤ (ξ·fₙ)² / 2 Hz/s per mode | Must be slow enough for each mode to reach steady state |
+| Frequency range | Cover all target modes + 10% margin | e.g. 1–200 Hz |
+| Force level | Set per pre-test linearity check | Constant-force control preferred over constant-voltage |
+
+#### Pre-test quality checks
+
+| Check | Method | Pass criterion |
+|---|---|---|
+| **Linearity** | Repeat at 50% and 100% drive level; compare FRFs | Magnitude within ±1 dB |
+| **Reciprocity** | Compare H(i→j) vs H(j→i) | Magnitude ±1 dB, phase ±5° |
+| **Drive-point positivity** | Real part of H at drive-point location | Must be ≥ 0 at all frequencies |
+| **Coherence** | Multiple coherence per output | γ² ≥ 0.9 in the analysis band |
+
+#### FRF matrix quality checks
+
+| Check | Target |
+|---|---|
+| Multiple coherence per output channel | ≥ 0.9 in analysis band |
+| Gxx condition number (per frequency line) | < 100 (> 100 = runs are insufficiently independent) |
+| Drive-point FRF real part | Positive at all frequencies |
+| CMIF rank — σ₁/σ₂ ratio at resonance | Both singular values should peak at distinct modal frequencies |
+
+Multiple coherence for output channel _k_:
+
+```
+γ²_multiple[k] = (H[k,:] · Gxx · H[k,:].conj().T) / Gyy[k,k]
+```
+
+---
+
 ### Data requirements
 - Two CSV files loaded directly on this page (independent of the landing page):
   - **Run A** — in-phase excitation: all shakers driven at 0° relative phase.
