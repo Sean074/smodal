@@ -49,14 +49,15 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `output_channels` | `app.py` | all pages |
 | `sample_rate` | `app.py` | all pages |
 | `analysis_name`, `analyst`, `description`, `comment` | `app.py` | log save |
-| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py`, `4_SIMO.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
-| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached), `4_SIMO.py` |
+| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
+| `si_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (charts, Extract) |
 | `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
-| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) |
+| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) — shape `(n_freqs, 2)` |
 | `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
-| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Build) |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
