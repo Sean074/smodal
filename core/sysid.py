@@ -20,7 +20,7 @@ def compute_mimo_cmif(H: np.ndarray, n_out: int) -> np.ndarray:
     n_freqs = H.shape[0]
     sv = np.zeros((n_freqs, 2))
     for i in range(n_freqs):
-        s = np.linalg.svd(H[i].reshape(n_out, 2), compute_uv=False)
+        s = np.linalg.svd(H[i].reshape(2, n_out).T, compute_uv=False)
         sv[i, 0] = s[0]
         sv[i, 1] = s[1] if len(s) > 1 else 0.0
     return sv
