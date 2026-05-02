@@ -153,7 +153,10 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 - Loads Run A (in-phase) and Run B (out-of-phase) CSVs independently via file uploaders on the page — does not use landing-page session data.
 - Sample rate derived from Run A time column.
 - Channel assignment: separate input-channel selectboxes for Run A and Run B; shared output multiselect.
-- Optional pre-processing expander (time trim + Butterworth filter) applied identically to both runs before FRF computation. Includes a **Show time history preview** checkbox (default on) that renders stacked subplots of the trimmed window — Run A in blue, Run B in orange; filtered traces overlaid as dashed lines when a filter is active.
+- Three optional pre-processing expanders (all use the same trim + filter settings):
+  1. **Time history / filter** — time range slider, Butterworth filter controls, optional time history preview (Run A blue, Run B orange; filtered as dashed overlays).
+  2. **FFT preview** — two-column layout (Run A | Run B); input + each output channel FFT (dB, uniform window) stacked vertically; max-frequency slider.
+  3. **FRF preview** — two-column layout (Run A | Run B); magnitude (dB) + phase (°) per input/output pair stacked vertically; H1, single FFT; max-frequency slider.
 - **Step 1**: FRF method (Welch/Single FFT), FRF estimator (H1/H2/Hv), Welch controls, frequency range, max model order, stability thresholds → **Build Stability Diagram**.
   - FRFs computed independently per run using the chosen SIMO estimator, then column-stacked: `H_stacked = [H_A | H_B]` shape `(n_freqs, n_out × 2)`.
   - pLSCF sweep over stacked matrix; CMIF via SVD of per-frequency `(n_out × 2)` slice.

@@ -247,7 +247,9 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - **Run B input channel** — force reference for the out-of-phase run.
 - **Output channels** multiselect — channels present in both runs.
 
-### Pre-processing expander (optional, applied identically to both runs)
+### Pre-processing expanders (optional, applied identically to both runs)
+
+#### Time history / filter expander
 - **Time range** slider — trims both runs to the same window.
 - **Filter type** radio: None / Lowpass / Highpass / Bandpass / Bandstop (Butterworth).
   - Filter order slider (1–8).
@@ -258,6 +260,18 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - Run A plotted in blue (solid); Run B in orange (solid).
   - When a filter is active, filtered traces overlaid as dashed lines (Run A dashed blue, Run B dashed orange).
   - Shared x-axis; 200 px height per subplot row.
+
+#### FFT preview expander
+- **Max frequency** slider for display range.
+- Two-column layout: **Run A** (left) | **Run B** (right).
+- Each column: input channel FFT followed by each output channel FFT stacked vertically (shared x-axis).
+- Magnitude plotted in dB (20 log₁₀|FFT|); uniform (rectangular) window, single FFT of the trimmed/filtered signal.
+
+#### FRF preview expander
+- **Max frequency** slider for display range.
+- Two-column layout: **Run A** (left) | **Run B** (right).
+- Each column: for each input/output pair, magnitude (dB) and phase (°) stacked vertically (shared x-axis).
+- Uses H1 estimator from single FFT of the trimmed/filtered signals.
 
 ### Controls
 

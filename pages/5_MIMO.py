@@ -295,6 +295,126 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
             )
             st.plotly_chart(fig_prev, use_container_width=True)
 
+# ── helpers for preview expanders ─────────────────────────────────────────────
+def _preview_proc(run_df):
+    _cutoffs_ok = not (
+        isinstance(cutoff_params, list)
+        and len(cutoff_params) == 2
+        and cutoff_params[0] >= cutoff_params[1]
+    )
+    _ftype = filter_type if _cutoffs_ok else "None"
+    _cparams = cutoff_params if _cutoffs_ok else None
+    return _preprocess(run_df, t_min, t_max, _ftype, filter_order, _cparams, fs)
+
+
+def _fft_subplot(df_p, channels, fmax):
+    n_ch = len(channels)
+    fig = make_subplots(
+        rows=n_ch, cols=1, shared_xaxes=True,
+        vertical_spacing=0.04, subplot_titles=channels,
+    )
+    for i, ch in enumerate(channels):
+        if ch not in df_p.columns:
+            continue
+        f, F = compute_fft(df_p[ch].values, fs, "uniform")
+        mask = f <= fmax
+        fig.add_trace(
+            go.Scatter(
+                x=f[mask], y=20 * np.log10(np.maximum(np.abs(F[mask]), eps)),
+                mode="lines", line=dict(width=1.5), showlegend=False,
+            ),
+            row=i + 1, col=1,
+        )
+        fig.update_yaxes(title_text="|FFT| (dB)", row=i + 1, col=1)
+        if i == n_ch - 1:
+            fig.update_xaxes(title_text="Frequency (Hz)", row=i + 1, col=1)
+    fig.update_layout(height=max(250, 200 * n_ch), margin=dict(t=30, b=50, l=70, r=20))
+    return fig
+
+
+def _frf_subplot(df_p, input_ch, output_chs, fmax):
+    n_rows = len(output_chs) * 2
+    titles = []
+    for ch in output_chs:
+        titles += [f"|H({input_ch}→{ch})| (dB)", f"∠H({input_ch}→{ch}) (°)"]
+    fig = make_subplots(
+        rows=n_rows, cols=1, shared_xaxes=True,
+        vertical_spacing=0.04, subplot_titles=titles,
+    )
+    f, Sx = compute_fft(df_p[input_ch].values, fs, "uniform")
+    mask = f <= fmax
+    for i, ch in enumerate(output_chs):
+        if ch not in df_p.columns:
+            continue
+        _, Sy = compute_fft(df_p[ch].values, fs, "uniform")
+        H = compute_spectral_quantities(Sx, Sy)["H1"]
+        row_m, row_p = i * 2 + 1, i * 2 + 2
+        fig.add_trace(
+            go.Scatter(
+                x=f[mask], y=20 * np.log10(np.maximum(np.abs(H[mask]), eps)),
+                mode="lines", line=dict(width=1.5), showlegend=False,
+            ),
+            row=row_m, col=1,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=f[mask], y=np.degrees(np.angle(H[mask])),
+                mode="lines", line=dict(width=1.5), showlegend=False,
+            ),
+            row=row_p, col=1,
+        )
+        fig.update_yaxes(title_text="|H| (dB)", row=row_m, col=1)
+        fig.update_yaxes(title_text="Phase (°)", row=row_p, col=1)
+        if row_p == n_rows:
+            fig.update_xaxes(title_text="Frequency (Hz)", row=row_p, col=1)
+    fig.update_layout(height=max(250, 200 * n_rows), margin=dict(t=30, b=50, l=70, r=20))
+    return fig
+
+
+# ── Section C: FFT Preview expander ───────────────────────────────────────────
+with st.expander("FFT preview (optional — input & output channels, trimmed/filtered)"):
+    fft_fmax = st.slider(
+        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
+        value=float(fs / 2), key="mimo_fft_prev_fmax",
+    )
+    col_ffta, col_fftb = st.columns(2)
+    ra_fft = _preview_proc(run_a)
+    rb_fft = _preview_proc(run_b)
+    with col_ffta:
+        st.markdown("**Run A**")
+        st.plotly_chart(
+            _fft_subplot(ra_fft, [input_a] + sel_outputs, fft_fmax),
+            use_container_width=True,
+        )
+    with col_fftb:
+        st.markdown("**Run B**")
+        st.plotly_chart(
+            _fft_subplot(rb_fft, [input_b] + sel_outputs, fft_fmax),
+            use_container_width=True,
+        )
+
+# ── Section D: FRF Preview expander ───────────────────────────────────────────
+with st.expander("FRF preview (optional — H1 estimator, single FFT, trimmed/filtered)"):
+    frf_fmax = st.slider(
+        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
+        value=float(fs / 2), key="mimo_frf_prev_fmax",
+    )
+    col_frfa, col_frfb = st.columns(2)
+    ra_frf = _preview_proc(run_a)
+    rb_frf = _preview_proc(run_b)
+    with col_frfa:
+        st.markdown("**Run A**")
+        st.plotly_chart(
+            _frf_subplot(ra_frf, input_a, sel_outputs, frf_fmax),
+            use_container_width=True,
+        )
+    with col_frfb:
+        st.markdown("**Run B**")
+        st.plotly_chart(
+            _frf_subplot(rb_frf, input_b, sel_outputs, frf_fmax),
+            use_container_width=True,
+        )
+
 # ── Layout ────────────────────────────────────────────────────────────────────
 ctrl_col, chart_col = st.columns([1, 3])
 
