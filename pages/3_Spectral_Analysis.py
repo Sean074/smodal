@@ -198,8 +198,8 @@ with chart_col:
     mask = (freqs >= f_min) & (freqs <= f_max)
     f_plot = freqs[mask]
 
-    tab_ap, tab_cp, tab_frf, tab_coh = st.tabs(
-        ["Auto-Power", "Cross-Power", "FRF", "Coherence"]
+    tab_ap, tab_psd, tab_cp, tab_frf, tab_coh = st.tabs(
+        ["Auto-Power", "PSD", "Cross-Power", "FRF", "Coherence"]
     )
 
     eps = np.finfo(float).tiny
@@ -246,7 +246,68 @@ with chart_col:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Tab 2: Cross-Power ───────────────────────────────────────────────────
+    # ── Tab 2: PSD ───────────────────────────────────────────────────────────
+    with tab_psd:
+        psd_log = st.checkbox("dB (10 log₁₀)", value=False, key="sa_psd_log")
+
+        result_method = res["params"].get("method", "Single FFT")
+        is_welch = result_method == "Welch"
+
+        # Δf and normalisation factor
+        N = 2 * (len(freqs) - 1)
+        if is_welch:
+            nperseg_val = res["params"].get("nperseg", N)
+            delta_f = sample_rate / nperseg_val
+            Sxx = ch_data[plot_chs[0]]["Gxx"]
+            Syy_dict = {ch: ch_data[ch]["Gyy"] for ch in plot_chs}
+        else:
+            delta_f = sample_rate / N
+            norm = sample_rate * N
+            Sxx = 2.0 * ch_data[plot_chs[0]]["Gxx"] / norm
+            Syy_dict = {ch: 2.0 * ch_data[ch]["Gyy"] / norm for ch in plot_chs}
+
+        y_label = "PSD (dB)" if psd_log else "PSD (unit²/Hz)"
+        df_str = f"  Δf = {delta_f:.4f} Hz"
+
+        n_rows_psd = 1 + n_out
+        psd_titles = [f"Sxx — {input_channel}{df_str}"] + [
+            f"Syy — {ch}{df_str}" for ch in plot_chs
+        ]
+        fig = make_subplots(
+            rows=n_rows_psd, cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.04,
+            subplot_titles=psd_titles,
+        )
+
+        def _psd_y(arr: np.ndarray) -> np.ndarray:
+            return 10 * np.log10(np.maximum(arr, eps)) if psd_log else arr
+
+        fig.add_trace(
+            go.Scatter(x=f_plot, y=_psd_y(Sxx[mask]), mode="lines",
+                       name=input_channel,
+                       line=dict(color="#1f77b4", width=1.5)),
+            row=1, col=1,
+        )
+        fig.update_yaxes(title_text=y_label, row=1, col=1)
+
+        for i, ch in enumerate(plot_chs, start=1):
+            fig.add_trace(
+                go.Scatter(x=f_plot, y=_psd_y(Syy_dict[ch][mask]), mode="lines",
+                           name=ch, line=dict(color=_color(i), width=1.5)),
+                row=i + 1, col=1,
+            )
+            fig.update_yaxes(title_text=y_label, row=i + 1, col=1)
+
+        fig.update_xaxes(title_text="Frequency (Hz)", row=n_rows_psd, col=1)
+        fig.update_layout(
+            height=220 * n_rows_psd,
+            legend=dict(orientation="h", y=-0.06),
+            margin=dict(t=40, b=60, l=60, r=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── Tab 3: Cross-Power ───────────────────────────────────────────────────
     with tab_cp:
         n_rows = 2 * n_out
         titles = []
@@ -291,7 +352,7 @@ with chart_col:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Tab 3: FRF ───────────────────────────────────────────────────────────
+    # ── Tab 4: FRF ───────────────────────────────────────────────────────────
     with tab_frf:
         estimator = st.radio(
             "FRF estimator",
@@ -362,7 +423,7 @@ with chart_col:
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # ── Tab 4: Coherence ─────────────────────────────────────────────────────
+    # ── Tab 5: Coherence ─────────────────────────────────────────────────────
     with tab_coh:
         titles = [f"γ² — {ch}" for ch in plot_chs]
         fig = make_subplots(

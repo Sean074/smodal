@@ -8,7 +8,7 @@
 | 1 | Time History | Implemented |
 | 2 | FFT | Implemented |
 | 3 | Spectral Analysis | Implemented |
-| 4 | Operational Modal Analysis (OMA) | Stub |
+| 4 | System Identification (SIMO EMA) | Implemented |
 | 5 | Integration / Differentiation | Stub |
 | 6 | Modal Assurance Criteria (MAC) | Stub |
 | 7 | Wireframe Mode Shape | Stub |
@@ -105,6 +105,12 @@ Four tabs:
 - `Gxx` (input) and `Gyy` (each output) plotted in dB (10 log₁₀).
 - Stacked subplots, shared x-axis.
 
+### PSD
+- One-sided Power Spectral Density for input (`Sxx`) and each output channel (`Syy`), stacked subplots with shared x-axis.
+- PSD is normalised by frequency resolution so units are (measurement unit)²/Hz:  - *Welch*: `scipy.signal.welch` already returns a properly normalised one-sided PSD.
+- *Single FFT*: `PSD = 2 · |FFT|² / (fs · N)` (factor of 2 for one-sided, divided by window energy `fs · N`).
+- Y-axis display toggle: linear (unit)²/Hz or dB (10 log₁₀ of the PSD).- Δf annotation per subplot caption so the analyst can confirm frequency resolution.
+
 ### Cross-Power
 - `|Gyx|` in dB and `∠Gyx` in degrees, two rows per output channel.
 
@@ -124,11 +130,102 @@ Four tabs:
 
 ---
 
-## Page 4 — Operational Modal Analysis (stub)
+## Page 4 — System Identification (SIMO EMA)
 
-OMA / Stability Diagram — not yet implemented.
+Single-Input Multiple-Output Experimental Modal Analysis using FRFs from Page 3.
 
-Planned: automated pole extraction, stability diagram, mode identification.
+Two-column layout (1:3 ratio): narrow controls left, charts right.
+
+### Data requirements
+- `spectral_results` from Page 3 (must contain H1/H2/Hv for all output channels).
+
+### Controls
+
+**Step 1 — Stability Diagram**
+- **Curve fitting method** radio: pLSCF / ERA.
+- **FRF estimator** radio: H1 / H2 / Hv (default H1).
+- **Output channels** multiselect (defaults to all available from `spectral_results`).
+- **Frequency range** slider (analysis band, 0 Hz to Nyquist).
+- **Max model order** slider (4–100, step 2, default 40).
+- **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
+- **Build Stability Diagram** button — sweeps orders 2..N_max and stores results in session state.
+
+**Step 2 — Mode Specification**
+- **Number of modes** integer input (1–20; auto-populated from count of deduplicated green stable poles).
+- **Mode initial estimates** editable data_editor table — one row per mode: fn (Hz), ξ (%), source (read-only).
+  - Pre-populated from green stable poles (deduplicated at 1 % frequency tolerance), sorted by fn.
+  - Falls back to top-N CMIF peaks (`scipy.signal.find_peaks` by prominence) if poles are insufficient.
+  - Falls back to manual zero-rows if no CMIF is available.
+  - User can override fn and ξ values.
+- **Extract Mode Shapes** button — converts table estimates to complex poles and runs residue extraction.
+
+### Four tabs
+
+#### CMIF
+- Complex Mode Indicator Function computed live from the selected channels and FRF estimator.
+- Plotted on a log y-axis vs frequency (Hz).
+- Peaks indicate candidate mode locations.
+- Implementation: `np.linalg.norm(H, axis=1)` (Euclidean norm per frequency line, equivalent to first singular value of a row vector).
+
+#### Stability Diagram
+- Model order swept from 2 to N_max (step 2); each order compared to the previous.
+- Pole stability classification:
+  - **open circle / grey** = new (no match in previous order)
+  - **cross / blue** = frequency stable: `|Δfn/fn| < ε_f`
+  - **x / orange** = freq + damping stable: above + `|Δξ/ξ| < ε_ξ`
+  - **star / green** = fully stable: above + MAC ≥ ε_MAC
+- Normalised CMIF curve shown in background for reference (scaled to fit model-order axis).
+
+#### Mode Shapes
+- Summary table: Mode #, fn (Hz), ξ (%), |φ| and ∠φ (°) per output channel.
+- Stacked FRF subplots per output channel — 2 rows each (magnitude dB, phase °), shared x-axis:
+  - Measured — solid colour line.
+  - Synthesised — dashed red line.
+  - Optional individual modal contributions — thin dotted lines (toggled by checkbox).
+- NMSE (dB) per channel appended to the subplot title annotation.
+
+#### Export
+- Table of identified modes (mode #, fn Hz, ξ %, amplitude and phase per channel) shown and available as downloadable CSV named `<analysis_name>_modal_results.csv`.
+- Results stored in `modal_results` session state for Page 6 (MAC) and Page 7 (Wireframe).
+
+### Algorithms
+
+#### Method 1 — pLSCF (default)
+- Operates directly on FRFs from Page 3 (no IFFT required).
+- z-domain Right Matrix Fraction Description: `H(z) = B(z) · A(z)⁻¹`.
+- Basis variable: `z_i = exp(+j 2π f_i Δt)` where `Δt = 1 / (2 · f_max)`.
+- Real-valued normal equations across all output channels simultaneously (`numpy.linalg.lstsq`).
+- Monic denominator: α₀ = 1; solves for α₁…αₙ.
+- Poles from `numpy.roots` applied to denominator polynomial in descending order.
+- z → s mapping: `s = log(z) / Δt`.
+- Best choice for EMA with a measured input signal.
+
+#### Method 2 — ERA
+- Computes Impulse Response Function via `numpy.fft.irfft(H)` for each output channel.
+- Builds block Hankel matrices H₀ (offset 0) and H₁ (offset 1), size `(n_out·r) × s`.
+- SVD of H₀ (`scipy.linalg.svd`), rank-truncated to `n_order`.
+- State-space realisation: `A_sys = S⁻½ Uᵣᵀ H₁ Vᵣ S⁻½`.
+- Eigendecomposition of A_sys (`scipy.linalg.eig`); z → s via `log(λ)/Δt`.
+- Mode shapes extracted directly from observability matrix: `C_obs @ evecs`.
+- Well suited for extension to OMA (ambient excitation, no measured input).
+
+#### Shared (both methods)
+- **Physical pole filter:** `Im(s) > 0`, `0 < ξ < 30 %`, `fn` within analysis frequency range.
+- **MAC for stability:** computed on mode-shape vectors from consecutive orders; pLSCF uses a quick residue extraction per order, ERA uses observability-matrix mode shapes.
+- **Residue extraction:** complex least-squares `np.linalg.lstsq(Φ, H)` where `Φ[i,k] = 1/(jωᵢ − sₖ) + 1/(jωᵢ − sₖ*)` — returns complex residues encoding amplitude and phase.
+- **FRF synthesis:** vectorised partial-fraction sum: `H_syn = Φ @ residues.T`.
+- **NMSE:** `10 log₁₀(‖H_meas − H_syn‖² / ‖H_meas‖²)` per output channel (dB); lower = better fit.
+
+### Session state
+| Key | Set by | Consumed by |
+|-----|--------|-------------|
+| `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
+| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab background, CMIF tab) |
+| `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
 
