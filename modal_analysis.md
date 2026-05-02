@@ -8,7 +8,7 @@
 | 1 | Time History | Implemented |
 | 2 | FFT | Implemented |
 | 3 | Spectral Analysis | Implemented |
-| 4 | Operational Modal Analysis (OMA) | Stub |
+| 4 | System Identification (SIMO EMA) | Implemented |
 | 5 | Integration / Differentiation | Stub |
 | 6 | Modal Assurance Criteria (MAC) | Stub |
 | 7 | Wireframe Mode Shape | Stub |
@@ -134,7 +134,7 @@ Four tabs:
 
 Single-Input Multiple-Output Experimental Modal Analysis using FRFs from Page 3.
 
-Two-column layout: narrow controls left, charts right.
+Two-column layout (1:3 ratio): narrow controls left, charts right.
 
 ### Data requirements
 - `spectral_results` from Page 3 (must contain H1/H2/Hv for all output channels).
@@ -144,158 +144,88 @@ Two-column layout: narrow controls left, charts right.
 **Step 1 — Stability Diagram**
 - **Curve fitting method** radio: pLSCF / ERA.
 - **FRF estimator** radio: H1 / H2 / Hv (default H1).
-- **Output channels** multiselect.
-- **Frequency range** slider (analysis band).
+- **Output channels** multiselect (defaults to all available from `spectral_results`).
+- **Frequency range** slider (analysis band, 0 Hz to Nyquist).
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
-- **Build Stability Diagram** button.
+- **Build Stability Diagram** button — sweeps orders 2..N_max and stores results in session state.
 
 **Step 2 — Mode Specification**
-- **Number of modes** integer input (auto-populated from green stable pole count).
-- **Mode initial estimates** editable table — one row per mode: fn (Hz), ξ (%).
-  Pre-populated from selected green poles; falls back to top-N CMIF peaks
-  (`scipy.signal.find_peaks`) if no poles selected. User can override any value.
-- **Extract Mode Shapes** button.
+- **Number of modes** integer input (1–20; auto-populated from count of deduplicated green stable poles).
+- **Mode initial estimates** editable data_editor table — one row per mode: fn (Hz), ξ (%), source (read-only).
+  - Pre-populated from green stable poles (deduplicated at 1 % frequency tolerance), sorted by fn.
+  - Falls back to top-N CMIF peaks (`scipy.signal.find_peaks` by prominence) if poles are insufficient.
+  - Falls back to manual zero-rows if no CMIF is available.
+  - User can override fn and ξ values.
+- **Extract Mode Shapes** button — converts table estimates to complex poles and runs residue extraction.
 
 ### Four tabs
 
 #### CMIF
-- Complex Mode Indicator Function: first singular value of the FRF matrix vs frequency.
+- Complex Mode Indicator Function computed live from the selected channels and FRF estimator.
+- Plotted on a log y-axis vs frequency (Hz).
 - Peaks indicate candidate mode locations.
-- Computed via `numpy.linalg.svd`.
+- Implementation: `np.linalg.norm(H, axis=1)` (Euclidean norm per frequency line, equivalent to first singular value of a row vector).
 
 #### Stability Diagram
-- Model order swept from 2 to N_max (step 2).
-- Each pole classified per order relative to previous order:
-  - **o** (grey) = new
-  - **f** (blue) = frequency stable: |Δfn/fn| < ε_f
-  - **d** (orange) = freq + damping stable: above + |Δξ/ξ| < ε_ξ
-  - **s** (green) = fully stable: above + MAC > ε_MAC
-- CMIF curve shown in background for reference.
+- Model order swept from 2 to N_max (step 2); each order compared to the previous.
+- Pole stability classification:
+  - **open circle / grey** = new (no match in previous order)
+  - **cross / blue** = frequency stable: `|Δfn/fn| < ε_f`
+  - **x / orange** = freq + damping stable: above + `|Δξ/ξ| < ε_ξ`
+  - **star / green** = fully stable: above + MAC ≥ ε_MAC
+- Normalised CMIF curve shown in background for reference (scaled to fit model-order axis).
 
 #### Mode Shapes
-- Summary table: Mode #, fn (Hz), ξ (%) — fitted values from residue extraction.
-- Stacked FRF subplots per output channel (magnitude dB + phase °):
-  - Measured H1 — solid colour line.
-  - Synthesised (predicted) model — dashed red line.
-  - Optional: individual modal contributions as thin dotted lines.
-- Modal fit quality (NMSE dB) per channel shown as subplot caption.
+- Summary table: Mode #, fn (Hz), ξ (%), |φ| and ∠φ (°) per output channel.
+- Stacked FRF subplots per output channel — 2 rows each (magnitude dB, phase °), shared x-axis:
+  - Measured — solid colour line.
+  - Synthesised — dashed red line.
+  - Optional individual modal contributions — thin dotted lines (toggled by checkbox).
+- NMSE (dB) per channel appended to the subplot title annotation.
 
 #### Export
-- Identified mode table as downloadable CSV.
+- Table of identified modes (mode #, fn Hz, ξ %, amplitude and phase per channel) shown and available as downloadable CSV named `<analysis_name>_modal_results.csv`.
 - Results stored in `modal_results` session state for Page 6 (MAC) and Page 7 (Wireframe).
 
 ### Algorithms
 
 #### Method 1 — pLSCF (default)
-- Operates directly on H1 FRFs from Page 3 (no IFFT required).
+- Operates directly on FRFs from Page 3 (no IFFT required).
 - z-domain Right Matrix Fraction Description: `H(z) = B(z) · A(z)⁻¹`.
-- Denominator polynomial A solved via real-valued normal equations across all output
-  channels simultaneously (`numpy.linalg.lstsq`).
-- Poles from companion matrix eigenvalues (`numpy.roots`).
+- Basis variable: `z_i = exp(+j 2π f_i Δt)` where `Δt = 1 / (2 · f_max)`.
+- Real-valued normal equations across all output channels simultaneously (`numpy.linalg.lstsq`).
+- Monic denominator: α₀ = 1; solves for α₁…αₙ.
+- Poles from `numpy.roots` applied to denominator polynomial in descending order.
+- z → s mapping: `s = log(z) / Δt`.
 - Best choice for EMA with a measured input signal.
 
 #### Method 2 — ERA
-- Computes Impulse Response Function via `numpy.fft.irfft(H1)`.
-- Builds block Hankel matrix from IRF samples.
-- SVD-based state-space realization (`scipy.linalg.svd`, `scipy.linalg.eig`).
-- Model order controlled by SVD rank truncation.
+- Computes Impulse Response Function via `numpy.fft.irfft(H)` for each output channel.
+- Builds block Hankel matrices H₀ (offset 0) and H₁ (offset 1), size `(n_out·r) × s`.
+- SVD of H₀ (`scipy.linalg.svd`), rank-truncated to `n_order`.
+- State-space realisation: `A_sys = S⁻½ Uᵣᵀ H₁ Vᵣ S⁻½`.
+- Eigendecomposition of A_sys (`scipy.linalg.eig`); z → s via `log(λ)/Δt`.
+- Mode shapes extracted directly from observability matrix: `C_obs @ evecs`.
 - Well suited for extension to OMA (ambient excitation, no measured input).
 
 #### Shared (both methods)
-- Residue extraction: partial-fraction model + `numpy.linalg.lstsq`.
-- FRF synthesis: vectorised partial-fraction sum (numpy).
-- CMIF: `numpy.linalg.svd` of H matrix at each frequency line.
-- Physical pole filter: 0 < ξ < 30 %, fn within analysis range.
-
----
-
-### Known Issues in `core/sysid.py` and `core/spectral.py`
-
-The following bugs were identified by numerical testing against a synthetic 2-DOF system
-(modes at 30 Hz / ζ = 3 % and 80 Hz / ζ = 5 %).  All three are interdependent and must be
-addressed together.
-
----
-
-#### Issue 1 — `spectral.py`: Welch FRF has conjugate phase (`compute_welch_quantities`)
-
-**Location:** `core/spectral.py`, line 96.
-
-**Root cause:** `scipy.signal.csd(a, b)` computes `E[a*(f) · b(f)]` (conjugate of the first
-argument times the second). The code calls `csd(y, x)`, which therefore returns
-`E[Y*(f) · X(f)] = conj(H) · Gxx`, not the intended `E[Y(f) · X*(f)] = H · Gxx`.
-
-**Effect:** The H1 estimator from Welch averaging has the correct magnitude but conjugate
-phase (e.g., +90° at resonance instead of the physically correct −90° for a receptance FRF).
-This propagates through Pages 1–3 (wrong phase display) and causes complete failure of
-residue extraction on Page 4 (NMSE ≈ 0 dB).
-
-**Fix:** Swap arguments: replace `csd(y, x)` with `csd(x, y)`.
-
----
-
-#### Issue 2 — `sysid.py`: pLSCF z → s mapping has wrong sign (`plscf_poles`)
-
-**Location:** `core/sysid.py`, function `plscf_poles`, line ~112.
-
-**Root cause:** The polynomial basis uses the forward-shift variable
-`z_i = exp(+j 2π f_i Δt)`.  The LS fit finds the denominator roots in this basis.  For a
-stable (damped) physical pole, the correct z-domain location is *inside* the unit circle
-(`|z_k| < 1`).  Applying `s = log(z_k) / Δt` then gives `Re(s_k) < 0` → positive damping
-(`ξ_k > 0`) → passes the physical mask correctly.
-
-**What went wrong:** During initial development the FRF passed to pLSCF was `conj(H)` (due
-to Issue 1).  The conjugate FRF shifts the polynomial roots to the *reciprocal* locations
-(outside the unit circle, `|z_k| > 1`), making `Re(log(z)/Δt) > 0` → `ξ < 0` → filtered
-out.  A sign negation `s = −log(z_k) / Δt` was applied as a workaround that happened to
-recover the correct poles from `conj(H)`.
-
-**Current state (after both Issue 1 fix and sign negation):** The FRF is now correct (`H`,
-not `conj(H)`), so the sign negation is no longer appropriate.  The combined effect is that
-pLSCF again finds no physical poles — this time because the minus sign pushes the correctly
-located roots to the wrong half-plane.
-
-**Fix (pending):** Revert `plscf_poles` to `s = +log(z_k) / Δt` now that Issue 1 is
-corrected.  The physical mask (`Im(s) > 0`, `ξ > 0`, `fn` in band) should then pass the
-correct poles without modification.
-
----
-
-#### Issue 3 — `sysid.py`: `extract_residues` forces real residues
-
-**Location:** `core/sysid.py`, function `extract_residues`, lines ~289–295.
-
-**Root cause:** The code stacks the real and imaginary parts of the basis matrix Φ into a
-real-valued system `[Re(Φ); Im(Φ)] · r = [Re(H); Im(H)]` and solves for a *real* vector
-`r`.  This implicitly constrains all residues to be real scalars, i.e., it forces all mode
-shapes to be in-phase (purely real).
-
-**Effect:** Complex mode-shape residues (which encode both amplitude and relative phase at
-each sensor) cannot be represented.  The synthesised FRF magnitude is typically 10–100×
-smaller than measured, and NMSE ≈ 0 dB (effectively no fit).  This applies even when the
-exact pole locations are known.
-
-**Fix:** Replace the stacked real LS with a complex LS solve directly:
-`np.linalg.lstsq(Phi, H)` where `Phi` and `H` are complex-valued.  This returns complex
-residues that correctly encode amplitude and phase.
-
----
-
-#### Summary of recommended corrections (in order)
-
-| Step | File | Change | Depends on |
-|------|------|---------|------------|
-| 1 | `core/spectral.py` | `csd(y, x)` → `csd(x, y)` | — |
-| 2 | `core/sysid.py` | Revert `plscf_poles` to `+log(z)/Δt` | Step 1 |
-| 3 | `core/sysid.py` | Replace real LS in `extract_residues` with complex LS | Step 1 |
-
-All three steps have been applied.
+- **Physical pole filter:** `Im(s) > 0`, `0 < ξ < 30 %`, `fn` within analysis frequency range.
+- **MAC for stability:** computed on mode-shape vectors from consecutive orders; pLSCF uses a quick residue extraction per order, ERA uses observability-matrix mode shapes.
+- **Residue extraction:** complex least-squares `np.linalg.lstsq(Φ, H)` where `Φ[i,k] = 1/(jωᵢ − sₖ) + 1/(jωᵢ − sₖ*)` — returns complex residues encoding amplitude and phase.
+- **FRF synthesis:** vectorised partial-fraction sum: `H_syn = Φ @ residues.T`.
+- **NMSE:** `10 log₁₀(‖H_meas − H_syn‖² / ‖H_meas‖²)` per output channel (dB); lower = better fit.
 
 ### Session state
 | Key | Set by | Consumed by |
 |-----|--------|-------------|
-| `modal_results` | `4_OMA.py` | `6_MAC.py`, `7_Wireframe.py` |
+| `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
+| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab background, CMIF tab) |
+| `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
 

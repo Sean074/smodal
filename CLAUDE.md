@@ -31,7 +31,7 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/1_Time_History.py` | Time history plots, trim range, Butterworth filtering | Implemented |
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
-| `pages/4_OMA.py` | Operational Modal Analysis / Stability Diagram | Stub |
+| `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
 | `pages/5_Integration.py` | Signal integration / differentiation | Stub |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
 | `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
@@ -50,8 +50,14 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
-| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
-| `modal_results` | `4_OMA.py` | `6_MAC.py`, `7_Wireframe.py` |
+| `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached), `4_SIMO.py` |
+| `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
+| `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) |
+| `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 Every page (except `7_Wireframe.py`) guards against missing data with:
 ```python
@@ -66,6 +72,17 @@ if st.session_state.get("df") is None:
 - `load_csv(file)` — accepts a file-like object, normalises the time column name, returns `(df, error_string)`.
 - `compute_sample_rate(time)` — estimates Hz from mean `diff` of the time array.
 - `compute_summary(df, input_ch, output_chs)` — returns a list of dicts (one per channel) with samples, sample rate, duration, min/max time, min/max value, RMS.
+
+#### `core/sysid.py`
+- `compute_cmif(H)` — `np.linalg.norm(H, axis=1)`; Euclidean norm per frequency line (equivalent to first singular value of a row vector).
+- `cmif_peak_estimates(cmif, freqs, n_modes)` — top-N peaks by `scipy.signal.find_peaks` prominence; falls back to evenly spaced frequencies.
+- `poles_from_estimates(fn_hz, xi)` — converts fn (Hz) and ξ arrays to continuous-time complex poles `s = −ξωₙ + jωd`.
+- `plscf_poles(H, freqs, n_order)` — pLSCF for one model order; real-valued normal equations, monic denominator, `numpy.roots`, `s = log(z)/Δt`; returns physical poles only.
+- `era_poles(H, freqs, n_order, fs)` — ERA for one model order; IRF via `irfft`, block Hankel, SVD, state-space eigendecomposition; returns `(poles, mode_shapes)`.
+- `build_stability_table(H, freqs, fs, max_order, method, df_thr, dd_thr, mac_thr)` — sweeps orders 2..max_order step 2; classifies each pole as `new` / `stable_f` / `stable_fd` / `stable_all`; returns list of dicts.
+- `extract_residues(H, freqs, poles)` — complex LS fit of partial-fraction basis to H; returns `(n_outputs, n_modes)` complex residues.
+- `synthesize_frf(freqs, poles, residues)` — partial-fraction sum; returns `(n_freqs, n_outputs)` complex.
+- `modal_fit_nmse(H_measured, H_syn)` — NMSE per output channel in dB (lower = better).
 
 #### `core/spectral.py`
 - `compute_fft(signal, sample_rate, window)` — applies a scipy window and returns `(freqs_hz, fft_complex)` via `np.fft.rfft`.
@@ -107,6 +124,15 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 - Frequency range slider scoped to chart area.
 - Results cached in `spectral_results`; only recomputes when params change.
 - Coherence tab: γ²=0.85 reference line; caption adapts to method (Welch gives meaningful coherence, Single FFT always yields γ²=1).
+
+#### Page 4 — System Identification (SIMO EMA)
+- Requires `spectral_results` from Page 3; guards against missing data.
+- Two-column layout (1:3): controls left, charts right.
+- **Step 1** — select method (pLSCF/ERA), FRF estimator, output channels, frequency range, max model order, stability thresholds; click **Build Stability Diagram**.
+- **Step 2** — n_modes (auto from green pole count), editable estimates table (fn Hz, ξ %, source); click **Extract Mode Shapes**.
+- Build stores `si_stability_table`, `si_cmif`, `si_H_mat`, `si_freqs_band`, `si_sel_outputs`, `si_frf_est_used` in session state and clears any previous `modal_results`.
+- Extract stores `modal_results` (fn, xi, poles, mode_shapes, output_channels, freqs, H_measured, H_synthesis, nmse).
+- Four tabs: **CMIF** (log-scale, live from selected channels), **Stability Diagram** (scatter per class + CMIF background), **Mode Shapes** (summary table + stacked FRF overlays with optional modal contributions, NMSE per subplot), **Export** (downloadable CSV).
 
 ### Spectral analysis formulas (page 3)
 

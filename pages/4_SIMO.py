@@ -14,8 +14,8 @@ from core.sysid import (
     synthesize_frf,
 )
 
-st.set_page_config(page_title="System Identification", layout="wide")
-st.title("System Identification — SIMO EMA")
+st.set_page_config(page_title="SIMO — System Identification", layout="wide")
+st.title("SIMO — System Identification (EMA)")
 
 # ── Guard ─────────────────────────────────────────────────────────────────────
 if st.session_state.get("df") is None:
@@ -235,13 +235,14 @@ with chart_col:
             H_live = np.column_stack([res3["channels"][ch][frf_est]
                                       for ch in sel_outputs if ch in res3["channels"]])
             cmif_live = compute_cmif(H_live) if H_live.ndim == 2 else np.abs(H_live)
+            band_mask = (freqs >= f_min) & (freqs <= f_max)
             fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=freqs, y=cmif_live, mode="lines",
+                x=freqs[band_mask], y=cmif_live[band_mask], mode="lines",
                 line=dict(color="#1f77b4", width=1.5), name="CMIF (σ₁)",
             ))
             fig.update_yaxes(type="log", title_text="CMIF (σ₁)")
-            fig.update_xaxes(title_text="Frequency (Hz)")
+            fig.update_xaxes(title_text="Frequency (Hz)", range=[f_min, f_max])
             fig.update_layout(
                 height=350, margin=dict(t=30, b=50, l=60, r=20),
                 title="Complex Mode Indicator Function",
@@ -270,10 +271,11 @@ with chart_col:
             fig = go.Figure()
 
             # Background CMIF
+            band_mask = (freqs >= f_min) & (freqs <= f_max)
             if cmif_vals is not None:
                 cmif_norm = cmif_vals / (np.max(cmif_vals) + eps) * (max_order * 0.9)
                 fig.add_trace(go.Scatter(
-                    x=freqs, y=cmif_norm, mode="lines",
+                    x=freqs[band_mask], y=cmif_norm[band_mask], mode="lines",
                     line=dict(color="rgba(150,150,150,0.3)", width=1),
                     name="CMIF (bg)", showlegend=False,
                 ))
@@ -296,7 +298,7 @@ with chart_col:
                         name=_label[cls],
                     ))
 
-            fig.update_xaxes(title_text="Natural Frequency (Hz)")
+            fig.update_xaxes(title_text="Natural Frequency (Hz)", range=[f_min, f_max])
             fig.update_yaxes(title_text="Model Order")
             fig.update_layout(
                 height=500,
@@ -337,7 +339,10 @@ with chart_col:
             show_modal = st.checkbox("Show individual modal contributions", value=False,
                                      key="si_show_modal")
 
-            omega = 2.0 * np.pi * modal_res["freqs"]
+            all_freqs = modal_res["freqs"]
+            band_mask = (all_freqs >= f_min) & (all_freqs <= f_max)
+            freqs_plot = all_freqs[band_mask]
+            omega = 2.0 * np.pi * freqs_plot
 
             # Stacked FRF overlay plots (magnitude + phase per output channel)
             n_rows_fig = 2 * n_out_fit
@@ -355,29 +360,29 @@ with chart_col:
                 row_ph = 2 * o + 2
                 color = _color(o + 1)
 
-                H_m = H_meas[:, o]
-                H_s = H_syn[:, o]
+                H_m = H_meas[band_mask, o]
+                H_s = H_syn[band_mask, o]
 
                 fig.add_trace(go.Scatter(
-                    x=freqs, y=20 * np.log10(np.maximum(np.abs(H_m), eps)),
+                    x=freqs_plot, y=20 * np.log10(np.maximum(np.abs(H_m), eps)),
                     mode="lines", name=f"Measured — {ch}",
                     line=dict(color=color, width=1.5),
                     showlegend=(o == 0),
                 ), row=row_mag, col=1)
                 fig.add_trace(go.Scatter(
-                    x=freqs, y=20 * np.log10(np.maximum(np.abs(H_s), eps)),
+                    x=freqs_plot, y=20 * np.log10(np.maximum(np.abs(H_s), eps)),
                     mode="lines", name="Synthesised",
                     line=dict(color="red", width=1.5, dash="dash"),
                     showlegend=(o == 0),
                 ), row=row_mag, col=1)
 
                 fig.add_trace(go.Scatter(
-                    x=freqs, y=np.degrees(np.angle(H_m)),
+                    x=freqs_plot, y=np.degrees(np.angle(H_m)),
                     mode="lines", name=f"Measured — {ch}",
                     line=dict(color=color, width=1.5), showlegend=False,
                 ), row=row_ph, col=1)
                 fig.add_trace(go.Scatter(
-                    x=freqs, y=np.degrees(np.angle(H_s)),
+                    x=freqs_plot, y=np.degrees(np.angle(H_s)),
                     mode="lines", name="Synthesised",
                     line=dict(color="red", width=1.5, dash="dash"), showlegend=False,
                 ), row=row_ph, col=1)
@@ -389,7 +394,7 @@ with chart_col:
                         H_mode = (res_m / (1j * omega - pole)
                                   + res_m.conj() / (1j * omega - pole.conj()))
                         fig.add_trace(go.Scatter(
-                            x=freqs,
+                            x=freqs_plot,
                             y=20 * np.log10(np.maximum(np.abs(H_mode), eps)),
                             mode="lines",
                             name=f"Mode {m+1} — {ch}",
