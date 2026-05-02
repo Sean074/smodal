@@ -10,6 +10,22 @@ def compute_cmif(H: np.ndarray) -> np.ndarray:
     return np.linalg.norm(H, axis=1)
 
 
+def compute_mimo_cmif(H: np.ndarray, n_out: int) -> np.ndarray:
+    """SVD-based CMIF for MIMO FRF matrix.
+
+    H: (n_freqs, n_out * 2) complex — stacked [H_A | H_B]
+    Returns (n_freqs, 2) real — singular values σ₁, σ₂ per frequency line.
+    σ₁ reveals all modes; σ₂ resolves repeated / closely-spaced modes.
+    """
+    n_freqs = H.shape[0]
+    sv = np.zeros((n_freqs, 2))
+    for i in range(n_freqs):
+        s = np.linalg.svd(H[i].reshape(2, n_out).T, compute_uv=False)
+        sv[i, 0] = s[0]
+        sv[i, 1] = s[1] if len(s) > 1 else 0.0
+    return sv
+
+
 def cmif_peak_estimates(cmif: np.ndarray, freqs: np.ndarray, n_modes: int) -> list[dict]:
     """Return top n_modes CMIF peaks sorted by prominence, as initial mode estimates."""
     peaks, props = scipy.signal.find_peaks(cmif, prominence=0)

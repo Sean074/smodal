@@ -30,11 +30,13 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `app.py` | Landing page — loads CSV data, assigns channels, saves analysis log | Implemented |
 | `pages/1_Time_History.py` | Time history plots, trim range, Butterworth filtering | Implemented |
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
-| `pages/3_Spectral_Analysis.py` | Auto/cross power, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
+| `pages/3_Spectral_Analysis.py` | Auto/cross power, PSD, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
-| `pages/5_Integration.py` | Signal integration / differentiation | Stub |
+| `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX), inline pre-processing | Implemented |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
 | `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
+
+`todo.md` tracks known bugs and development notes.
 
 ### Shared state
 
@@ -58,8 +60,19 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
+| `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract, charts) |
+| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
+| `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
+| `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
-Every page (except `7_Wireframe.py`) guards against missing data with:
+Every page guards against missing data with:
 ```python
 if st.session_state.get("df") is None:
     st.warning(...)
@@ -75,6 +88,7 @@ if st.session_state.get("df") is None:
 
 #### `core/sysid.py`
 - `compute_cmif(H)` — `np.linalg.norm(H, axis=1)`; Euclidean norm per frequency line (equivalent to first singular value of a row vector).
+- `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
 - `cmif_peak_estimates(cmif, freqs, n_modes)` — top-N peaks by `scipy.signal.find_peaks` prominence; falls back to evenly spaced frequencies.
 - `poles_from_estimates(fn_hz, xi)` — converts fn (Hz) and ξ arrays to continuous-time complex poles `s = −ξωₙ + jωd`.
 - `plscf_poles(H, freqs, n_order)` — pLSCF for one model order; real-valued normal equations, monic denominator, `numpy.roots`, `s = log(z)/Δt`; returns physical poles only.
@@ -100,49 +114,7 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 
 ### Page details
 
-#### Page 1 — Time History
-- Butterworth filter (lowpass, highpass, bandpass, bandstop) via `scipy.signal.butter` / `sosfiltfilt`.
-- Time range slider trims the display window.
-- Stacked subplots (one per channel) or overlaid single plot.
-- Raw and filtered traces plotted together (filtered in red dashed).
-- Persists trimmed + filtered data as `processed_df` and filter metadata as `processing_info` for downstream pages.
-- Channel stats table (min, max, mean, RMS, std dev) in an expander.
-
-#### Page 2 — FFT
-- Data source toggle: raw full dataset or processed data from Time History page.
-- Window selection: uniform, Hanning, Flat Top, Force, Exponential.
-- Display mode: Gain/Phase or Real/Imaginary.
-- Log Y toggle for gain axis.
-- "Compute & Save FFT" button stores results in `fft_results` for use by Spectral Analysis.
-- Auto-plots using cached FFT if settings match; recomputes on-the-fly otherwise.
-
-#### Page 3 — Spectral Analysis
-- **Method** radio: Single FFT (requires `fft_results`) or Welch (reads directly from `processed_df` / `df`).
-- Two-column layout: controls (left narrow) + charts (right wide).
-- Welch controls: Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar), plus Δf caption.
-- Four tabs: Auto-Power (dB), Cross-Power (magnitude + phase), FRF (H1/H2/Hv/All selector), Coherence.
-- Frequency range slider scoped to chart area.
-- Results cached in `spectral_results`; only recomputes when params change.
-- Coherence tab: γ²=0.85 reference line; caption adapts to method (Welch gives meaningful coherence, Single FFT always yields γ²=1).
-
-#### Page 4 — System Identification (SIMO EMA)
-- Requires `spectral_results` from Page 3; guards against missing data.
-- Two-column layout (1:3): controls left, charts right.
-- **Step 1** — select method (pLSCF/ERA), FRF estimator, output channels, frequency range, max model order, stability thresholds; click **Build Stability Diagram**.
-- **Step 2** — n_modes (auto from green pole count), editable estimates table (fn Hz, ξ %, source); click **Extract Mode Shapes**.
-- Build stores `si_stability_table`, `si_cmif`, `si_H_mat`, `si_freqs_band`, `si_sel_outputs`, `si_frf_est_used` in session state and clears any previous `modal_results`.
-- Extract stores `modal_results` (fn, xi, poles, mode_shapes, output_channels, freqs, H_measured, H_synthesis, nmse).
-- Four tabs: **CMIF** (log-scale, live from selected channels), **Stability Diagram** (scatter per class + CMIF background), **Mode Shapes** (summary table + stacked FRF overlays with optional modal contributions, NMSE per subplot), **Export** (downloadable CSV).
-
-### Spectral analysis formulas (page 3)
-
-System model: `x(t) → h(t) → y(t)`
-
-- Input auto-power: `Gxx = Sx · Sx*`
-- Output auto-power: `Gyy = Sy · Sy*`
-- Cross-power: `Gyx = Sy · Sx*`, `Gxy = Sx · Sy*`
-- FRF estimators: `H1 = Gyx / Gxx`, `H2 = Gyy / Gxy`, `Hv` = geometric mean magnitude with H1 phase
-- Coherence: `γ² = |Gyx|² / (Gxx · Gyy)`
+Full UI spec, controls, algorithms, and session state per page are in `modal_analysis.md`. Worked signal-processing examples with runnable code are in `analysis_method.ipynb`.
 
 ### Wireframe geometry (page 7 — stub)
 
