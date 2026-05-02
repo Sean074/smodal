@@ -83,6 +83,13 @@ if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.nam
         st.session_state["mimo_file_b_name"] = file_b.name
         for k in ["mimo_H_mat", "mimo_freqs", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
             st.session_state.pop(k, None)
+        fs_b = float(compute_sample_rate(df_b["time"].values))
+        fs_a = st.session_state.get("mimo_sample_rate")
+        if fs_a is not None and abs(fs_b - fs_a) / (fs_a + 1e-9) > 0.01:
+            st.warning(
+                f"Run B sample rate ({fs_b:.1f} Hz) differs from Run A ({fs_a:.1f} Hz) by more than 1 %. "
+                "FRF estimates will be unreliable. Re-upload files with matching sample rates."
+            )
 
 run_a = st.session_state.get("mimo_run_a_df")
 run_b = st.session_state.get("mimo_run_b_df")
@@ -188,6 +195,105 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
     st.caption(
         f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}"
     )
+
+    if st.checkbox("Show time history preview", value=True, key="mimo_show_th"):
+        preview_cols = st.multiselect(
+            "Channels to preview",
+            options=common_cols,
+            default=common_cols[: min(4, len(common_cols))],
+            key="mimo_preview_chs",
+        )
+        if preview_cols:
+            mask_a = (run_a["time"] >= t_min) & (run_a["time"] <= t_max)
+            mask_b = (run_b["time"] >= t_min) & (run_b["time"] <= t_max)
+            ra_trim = run_a[mask_a]
+            rb_trim = run_b[mask_b]
+
+            filter_active = (
+                filter_type != "None"
+                and cutoff_params is not None
+                and not (isinstance(cutoff_params, list) and cutoff_params[0] >= cutoff_params[1])
+            )
+            if filter_active:
+                ra_filt = _preprocess(run_a, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+                rb_filt = _preprocess(run_b, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
+
+            n_rows_prev = len(preview_cols)
+            fig_prev = make_subplots(
+                rows=n_rows_prev,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.05,
+                subplot_titles=preview_cols,
+            )
+
+            for pi, ch in enumerate(preview_cols):
+                if ch not in ra_trim.columns or ch not in rb_trim.columns:
+                    continue
+                row = pi + 1
+                first = pi == 0
+
+                fig_prev.add_trace(
+                    go.Scatter(
+                        x=ra_trim["time"],
+                        y=ra_trim[ch],
+                        mode="lines",
+                        name="Run A",
+                        line=dict(color="#1f77b4", width=1),
+                        showlegend=first,
+                    ),
+                    row=row,
+                    col=1,
+                )
+                fig_prev.add_trace(
+                    go.Scatter(
+                        x=rb_trim["time"],
+                        y=rb_trim[ch],
+                        mode="lines",
+                        name="Run B",
+                        line=dict(color="#ff7f0e", width=1),
+                        showlegend=first,
+                    ),
+                    row=row,
+                    col=1,
+                )
+
+                if filter_active:
+                    fig_prev.add_trace(
+                        go.Scatter(
+                            x=ra_filt["time"],
+                            y=ra_filt[ch],
+                            mode="lines",
+                            name="Run A (filtered)",
+                            line=dict(color="#1f77b4", width=1.5, dash="dash"),
+                            showlegend=first,
+                        ),
+                        row=row,
+                        col=1,
+                    )
+                    fig_prev.add_trace(
+                        go.Scatter(
+                            x=rb_filt["time"],
+                            y=rb_filt[ch],
+                            mode="lines",
+                            name="Run B (filtered)",
+                            line=dict(color="#ff7f0e", width=1.5, dash="dash"),
+                            showlegend=first,
+                        ),
+                        row=row,
+                        col=1,
+                    )
+
+                fig_prev.update_yaxes(title_text=ch, row=row, col=1)
+                if row == n_rows_prev:
+                    fig_prev.update_xaxes(title_text="Time (s)", row=row, col=1)
+
+            fig_prev.update_layout(
+                height=max(250, 200 * n_rows_prev),
+                margin=dict(t=30, b=50, l=70, r=20),
+                legend=dict(orientation="h", y=-0.08),
+            )
+            st.plotly_chart(fig_prev, use_container_width=True)
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 ctrl_col, chart_col = st.columns([1, 3])

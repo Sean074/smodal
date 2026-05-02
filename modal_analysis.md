@@ -253,6 +253,11 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - Filter order slider (1–8).
   - Single cutoff for Lowpass/Highpass; separate low/high cutoffs for Bandpass/Bandstop.
 - Caption shows time window, approximate sample count, and active filter.
+- **Show time history preview** checkbox (default on) — stacked subplots of the trimmed time window:
+  - **Channels to preview** multiselect (defaults to first 4 common channels).
+  - Run A plotted in blue (solid); Run B in orange (solid).
+  - When a filter is active, filtered traces overlaid as dashed lines (Run A dashed blue, Run B dashed orange).
+  - Shared x-axis; 200 px height per subplot row.
 
 ### Controls
 
