@@ -167,7 +167,11 @@ n_frames = int(c_fr.number_input(
 # ---------------------------------------------------------------------------
 
 if st.button("Animate mode shape", type="primary"):
-    raw_shape = np.real(mode_shapes[:, mode_idx])  # real part, (n_outputs,)
+    # MIMO stores (n_out, 2, n_modes); SIMO stores (n_outputs, n_modes)
+    if mode_shapes.ndim == 3:
+        raw_shape = np.real(mode_shapes[:, 0, mode_idx])
+    else:
+        raw_shape = np.real(mode_shapes[:, mode_idx])  # (n_outputs,)
     peak = np.max(np.abs(raw_shape))
     if peak > 0.0:
         raw_shape = raw_shape / peak
