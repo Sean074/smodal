@@ -14,4 +14,4 @@
 5. Force control / COLA — constant-overlap-and-add stepped sine with force-controlled amplitude for nonlinear structure characterisation.
 6. OMA overlay — compare EMA mode shapes against OMA results for in-service validation.
 7. Implement page 6 (Modal Assurance Criteria) — MAC matrix between identified mode shapes.
-8. Implement page 7 (Wireframe) — 3-D mode shape animation on a NASTRAN BDF geometry model.
+8. ~~Implement page 7 (Wireframe)~~ — Done. 3-D mode shape animation on a NASTRAN BDF geometry model. `data/input/sample_plate.dat` is provided as an example geometry file.
