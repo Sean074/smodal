@@ -1,0 +1,94 @@
+$ sample_plate.dat
+$ Flat plate wireframe  1 m (X) x 5 m (Y),  z = 0
+$ Grid: 3 columns (x = 0.0, 0.5, 1.0)  x  6 rows (y = 0, 1, 2, 3, 4, 5)
+$ 18 visualization GRIDs + 2 accelerometer GRIDs (19, 20)
+$ 27 PLOTELs, 18 RBE3 elements (inverse-distance weights to accels 19 and 20)
+BEGIN BULK
+$
+$ ---- GRID  id  cp    x      y     z ----
+GRID, 1,  0,  0.0,  0.0,  0.0
+GRID, 2,  0,  0.0,  1.0,  0.0
+GRID, 3,  0,  0.0,  2.0,  0.0
+GRID, 4,  0,  0.0,  3.0,  0.0
+GRID, 5,  0,  0.0,  4.0,  0.0
+GRID, 6,  0,  0.0,  5.0,  0.0
+GRID, 7,  0,  0.5,  0.0,  0.0
+GRID, 8,  0,  0.5,  1.0,  0.0
+GRID, 9,  0,  0.5,  2.0,  0.0
+GRID, 10, 0,  0.5,  3.0,  0.0
+GRID, 11, 0,  0.5,  4.0,  0.0
+GRID, 12, 0,  0.5,  5.0,  0.0
+GRID, 13, 0,  1.0,  0.0,  0.0
+GRID, 14, 0,  1.0,  1.0,  0.0
+GRID, 15, 0,  1.0,  2.0,  0.0
+GRID, 16, 0,  1.0,  3.0,  0.0
+GRID, 17, 0,  1.0,  4.0,  0.0
+GRID, 18, 0,  1.0,  5.0,  0.0
+$
+$ ---- PLOTEL  eid  g1  g2 ---- along Y (constant X) ----
+$ x = 0.0
+PLOTEL, 1,  1,  2
+PLOTEL, 2,  2,  3
+PLOTEL, 3,  3,  4
+PLOTEL, 4,  4,  5
+PLOTEL, 5,  5,  6
+$ x = 0.5
+PLOTEL, 6,  7,  8
+PLOTEL, 7,  8,  9
+PLOTEL, 8,  9,  10
+PLOTEL, 9,  10, 11
+PLOTEL, 10, 11, 12
+$ x = 1.0
+PLOTEL, 11, 13, 14
+PLOTEL, 12, 14, 15
+PLOTEL, 13, 15, 16
+PLOTEL, 14, 16, 17
+PLOTEL, 15, 17, 18
+$
+$ ---- PLOTEL  eid  g1  g2 ---- along X (constant Y) ----
+$ y = 0
+PLOTEL, 16, 1,  7
+PLOTEL, 17, 7,  13
+$ y = 1
+PLOTEL, 18, 2,  8
+PLOTEL, 19, 8,  14
+$ y = 2
+PLOTEL, 20, 3,  9
+PLOTEL, 21, 9,  15
+$ y = 3
+PLOTEL, 22, 4,  10
+PLOTEL, 23, 10, 16
+$ y = 4
+PLOTEL, 24, 5,  11
+PLOTEL, 25, 11, 17
+$ y = 5
+PLOTEL, 26, 6,  12
+PLOTEL, 27, 12, 18
+$
+$ ---- Accelerometer GRIDs ----
+GRID, 19, 0,  0.5,  4.5,  0.0
+GRID, 20, 0,  0.5,  2.5,  0.0
+$
+$ ---- RBE3  eid  blank  refgrid  refc  w19  dof  19  w20  dof  20 ----
+$ Weights are 1/distance from each mesh GRID to accel GRIDs 19 and 20.
+$ The visualizer normalises by total weight so absolute values are fine.
+RBE3, 101, , 1,  3, 0.000, 3, 19, 0.392, 3, 20
+RBE3, 102, , 2,  3, 0.000, 3, 19, 0.632, 3, 20
+RBE3, 103, , 3,  3, 0.000, 3, 19, 1.414, 3, 20
+RBE3, 104, , 4,  3, 0.632, 3, 19, 1.414, 3, 20
+RBE3, 105, , 5,  3, 1.414, 3, 19, 0.632, 3, 20
+RBE3, 106, , 6,  3, 1.414, 3, 19, 0.000, 3, 20
+RBE3, 107, , 7,  3, 0.000, 3, 19, 0.400, 3, 20
+RBE3, 108, , 8,  3, 0.000, 3, 19, 0.667, 3, 20
+RBE3, 109, , 9,  3, 0.000, 3, 19, 2.000, 3, 20
+RBE3, 110, , 10, 3, 0.667, 3, 19, 2.000, 3, 20
+RBE3, 111, , 11, 3, 2.000, 3, 19, 0.667, 3, 20
+RBE3, 112, , 12, 3, 2.000, 3, 19, 0.000, 3, 20
+RBE3, 113, , 13, 3, 0.000, 3, 19, 0.392, 3, 20
+RBE3, 114, , 14, 3, 0.000, 3, 19, 0.632, 3, 20
+RBE3, 115, , 15, 3, 0.000, 3, 19, 1.414, 3, 20
+RBE3, 116, , 16, 3, 0.632, 3, 19, 1.414, 3, 20
+RBE3, 117, , 17, 3, 1.414, 3, 19, 0.632, 3, 20
+RBE3, 118, , 18, 3, 1.414, 3, 19, 0.000, 3, 20
+$
+ENDDATA

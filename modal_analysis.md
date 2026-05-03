@@ -11,7 +11,7 @@
 | 4 | System Identification (SIMO EMA) | Implemented |
 | 5 | MIMO EMA (Multi-Reference System Identification) | Implemented |
 | 6 | Modal Assurance Criteria (MAC) | Stub |
-| 7 | Wireframe Mode Shape | Stub |
+| 7 | Wireframe Mode Shape | Implemented |
 
 ---
 
@@ -426,15 +426,49 @@ Planned: compute and display MAC matrix between identified mode shapes.
 
 ---
 
-## Page 7 — Wireframe Mode Shape (stub)
+## Page 7 — Wireframe Mode Shape
 
-3-D mode shape visualisation — not yet implemented.
+3-D animated mode shape visualisation on a NASTRAN BDF wireframe geometry.
 
-Planned implementation:
-- User selects an ASCII text file in NASTRAN BDF format.
-- Parser reads `GRID` cards (x, y, z geometry in global coordinate system CP 0) and `PLOTEL` cards (EID, G1, G2 connectivity).
-- 3-D Plotly figure plots grid points and wireframe connections.
-- Mode shape animation overlaid on the undeflected geometry.
+### Controls
+
+**Geometry (Section 1)**
+- File uploader for NASTRAN BDF / DAT file (`.bdf` or `.dat`).
+- Parser reads `GRID` cards (node positions in global CP 0), `PLOTEL` cards (wireframe edges), and optional `RBE3` cards (weighted interpolation from measurement GRIDs to geometry-only GRIDs).
+- Metrics panel shows GRID, PLOTEL, and RBE3 counts.
+- Collapsible geometry preview shows the undeformed 3-D wireframe.
+
+**Modal Results (Section 2)**
+- CSV file uploader to import saved modal results (optional — skipped if results are already in session state from Page 4 or Page 5).
+  - **SIMO format** (`*_modal_results.csv`): columns `mode`, `fn_hz`, `xi_pct`, `phi_amp_{ch}`, `phi_phase_deg_{ch}` for each output channel. Detected when no `phi_amp_A_` columns are present.
+  - **MIMO format** (`*_mimo_results.csv`): columns `mode`, `fn_hz`, `xi_pct`, `type`, `phi_amp_A_{ch}`, `phi_phase_deg_A_{ch}`, `phi_amp_B_{ch}`, `phi_phase_deg_B_{ch}` for each channel. Detected when `phi_amp_A_` columns are present.
+  - On successful import, mode shapes are reconstructed as complex arrays (`amp × e^{jφ}`) and written to the appropriate session state key (`modal_results` for SIMO, `mimo_modal_results` for MIMO).
+- If neither session state nor a CSV provides results, the page stops with an informational message.
+
+**Channel → GRID + DOF Mapping (Section 3)**
+- Table with one row per output channel.
+- Each row: channel name | GRID ID selectbox | Axis selectbox (X/Y/Z, default Z).
+- Builds a `mapping` list of `(gid, dof_index)` tuples consumed by the animation builder.
+
+**Animation Controls (Section 4)**
+- **Select mode** dropdown — labelled with frequency (Hz) and damping ratio (%).
+  - Source radio button if both SIMO and MIMO results are loaded.
+- **Amplitude scale** slider (0.01 – 100, default 1.0) — visual peak displacement multiplier.
+- **Animation frames** number input (4 – 60, default 20) — frames per animation cycle.
+
+**Animated Figure (Section 5)**
+- "Animate mode shape" primary button triggers build.
+- Extracts the real part of the selected mode shape vector (MIMO uses Run A, index 0).
+- Normalises peak amplitude to 1 before scaling.
+- Calls `expand_rbe3_displacements()` to interpolate measurement-point motion to all geometry GRIDs via RBE3 weighted averages.
+- Calls `build_mode_figure()` to produce an interactive animated Plotly 3-D figure with play/pause controls.
+
+### Session state consumed
+
+| Key | Source | Used for |
+|---|---|---|
+| `modal_results` | Page 4 or CSV import | SIMO mode shapes, fn, xi, output_channels |
+| `mimo_modal_results` | Page 5 or CSV import | MIMO mode shapes, fn, xi, output_channels |
 
 ---
 
