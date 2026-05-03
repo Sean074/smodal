@@ -34,7 +34,7 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
 | `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX) | Implemented |
 | `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
-| `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Stub |
+| `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Implemented |
 
 `todo.md` tracks known bugs and development notes.
 

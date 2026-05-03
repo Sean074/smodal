@@ -61,8 +61,70 @@ with st.expander("Geometry preview", expanded=True):
     st.plotly_chart(build_static_figure(geom), use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# 2. Modal results  (required only for animation)
+# 2. Modal results — from session state or CSV import
 # ---------------------------------------------------------------------------
+
+st.subheader("Modal Results")
+
+csv_upload = st.file_uploader(
+    "Import modal results CSV (optional — skip if analysis is already loaded)",
+    type=["csv"],
+    help=(
+        "Upload a CSV exported from Page 4 (SIMO) or Page 5 (MIMO). "
+        "Columns must follow the standard export format."
+    ),
+)
+
+if csv_upload is not None:
+    import pandas as pd
+
+    try:
+        csv_df = pd.read_csv(csv_upload)
+        is_mimo = any(c.startswith("phi_amp_A_") for c in csv_df.columns)
+
+        fn = csv_df["fn_hz"].to_numpy()
+        xi = csv_df["xi_pct"].to_numpy() / 100.0
+        n_modes = len(fn)
+
+        if is_mimo:
+            channels = [c[len("phi_amp_A_"):] for c in csv_df.columns if c.startswith("phi_amp_A_")]
+            n_out = len(channels)
+            mode_shapes = np.zeros((n_out, 2, n_modes), dtype=complex)
+            for i, ch in enumerate(channels):
+                for run_idx, prefix in enumerate(["A", "B"]):
+                    amp = csv_df[f"phi_amp_{prefix}_{ch}"].to_numpy()
+                    phase_rad = np.deg2rad(csv_df[f"phi_phase_deg_{prefix}_{ch}"].to_numpy())
+                    mode_shapes[i, run_idx] = amp * np.exp(1j * phase_rad)
+            mode_types = csv_df["type"].tolist() if "type" in csv_df.columns else ["?"] * n_modes
+            st.session_state["mimo_modal_results"] = {
+                "fn": fn,
+                "xi": xi,
+                "mode_shapes": mode_shapes,
+                "output_channels": channels,
+                "mode_types": mode_types,
+            }
+            st.success(f"Loaded MIMO results: {n_modes} modes, {n_out} channels.")
+        else:
+            channels = [
+                c[len("phi_amp_"):] for c in csv_df.columns
+                if c.startswith("phi_amp_") and not c.startswith("phi_amp_A_") and not c.startswith("phi_amp_B_")
+            ]
+            n_out = len(channels)
+            mode_shapes = np.zeros((n_out, n_modes), dtype=complex)
+            for i, ch in enumerate(channels):
+                amp = csv_df[f"phi_amp_{ch}"].to_numpy()
+                phase_rad = np.deg2rad(csv_df[f"phi_phase_deg_{ch}"].to_numpy())
+                mode_shapes[i] = amp * np.exp(1j * phase_rad)
+            st.session_state["modal_results"] = {
+                "fn": fn,
+                "xi": xi,
+                "mode_shapes": mode_shapes,
+                "output_channels": channels,
+            }
+            st.success(f"Loaded SIMO results: {n_modes} modes, {n_out} channels.")
+
+    except Exception as exc:
+        st.error(f"Failed to parse CSV: {exc}")
 
 has_simo = st.session_state.get("modal_results") is not None
 has_mimo = st.session_state.get("mimo_modal_results") is not None
@@ -70,8 +132,9 @@ has_mimo = st.session_state.get("mimo_modal_results") is not None
 if not has_simo and not has_mimo:
     st.info(
         "Geometry loaded successfully.  \n"
-        "To animate mode shapes, run **System Identification** on Page 4 (SIMO) "
-        "or Page 5 (MIMO) first."
+        "To animate mode shapes, either:  \n"
+        "- Upload a modal results CSV above, **or**  \n"
+        "- Run System Identification on Page 4 (SIMO) or Page 5 (MIMO) first."
     )
     st.stop()
 
