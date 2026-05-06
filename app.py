@@ -50,6 +50,7 @@ st.markdown(
 5. **MIMO** — multi-reference system identification from two independent excitation runs.
 6. **MAC** *(in work)* — Modal Assurance Criterion matrix between identified mode shapes.
 7. **Wireframe** — 3-D mode shape visualisation.
+8. **Method** — signal-processing reference: derivations, algorithms, and worked examples.
 
 > **SIMO and MIMO users:** load your data directly on the SIMO or MIMO page — it has its own file uploaders and does not depend on pages 1–3.
 """
