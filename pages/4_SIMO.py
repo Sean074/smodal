@@ -4,6 +4,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
+from core.data_loader import load_csv, compute_sample_rate
+from core.plots import fft_subplot, frf_subplot
+from core.preprocess import trim_and_filter
 from core.spectral import compute_fft, compute_spectral_quantities, compute_welch_quantities
 from core.sysid import (
     build_stability_table,
@@ -18,24 +21,223 @@ from core.sysid import (
 st.set_page_config(page_title="SIMO — System Identification", layout="wide")
 st.title("SIMO — System Identification (EMA)")
 
-# ── Guard ─────────────────────────────────────────────────────────────────────
-if st.session_state.get("df") is None:
-    st.warning("No data loaded. Return to the Landing Page and load a data file.")
-    st.stop()
-
-processed_df = st.session_state.get("processed_df")
-if processed_df is None:
-    st.warning(
-        "No processed data found. Visit **Page 1 — Time History** first."
-    )
-    st.stop()
-
-input_channel: str = st.session_state.get("input_channel", "")
-output_channels: list = st.session_state.get("output_channels", [])
-sample_rate: float = st.session_state.get("sample_rate", 1.0)
-
-available_outputs = [ch for ch in output_channels if ch in processed_df.columns]
 eps = np.finfo(float).tiny
+
+# ── Section A: File loading ────────────────────────────────────────────────────
+uploaded_file = st.file_uploader("Upload time-history CSV", type="csv", key="simo_upload")
+
+if uploaded_file is not None and st.session_state.get("simo_file_name") != uploaded_file.name:
+    df_raw, err = load_csv(uploaded_file)
+    if err:
+        st.error(err)
+    else:
+        st.session_state["simo_df"] = df_raw
+        st.session_state["simo_sample_rate"] = float(compute_sample_rate(df_raw["time"].values))
+        st.session_state["simo_file_name"] = uploaded_file.name
+        for k in ["si_H_mat", "si_freqs", "si_cmif", "si_stability_table", "modal_results"]:
+            st.session_state.pop(k, None)
+
+simo_df = st.session_state.get("simo_df")
+if simo_df is None:
+    st.info("Upload a time-history CSV file to begin.")
+    st.stop()
+
+fs: float = st.session_state.get("simo_sample_rate", 1.0)
+data_cols = [c for c in simo_df.columns if c != "time"]
+
+# ── Channel assignment ─────────────────────────────────────────────────────────
+st.divider()
+ch_col_in, ch_col_out = st.columns([1, 2])
+with ch_col_in:
+    input_channel = st.selectbox("Input channel", options=data_cols, key="simo_input_ch")
+with ch_col_out:
+    avail_outputs = [c for c in data_cols if c != input_channel]
+    sel_outputs_default = st.session_state.get("simo_output_chs", avail_outputs)
+    sel_outputs = st.multiselect(
+        "Output channels", options=avail_outputs, default=avail_outputs, key="simo_output_chs"
+    )
+
+if not sel_outputs:
+    st.warning("Select at least one output channel.")
+    st.stop()
+
+# ── Section B: Pre-processing expander ────────────────────────────────────────
+with st.expander("Pre-processing (optional)"):
+    t_min_data = float(simo_df["time"].min())
+    t_max_data = float(simo_df["time"].max())
+    t_step = max(round((t_max_data - t_min_data) / 1000, 6), 1e-6)
+    t_min, t_max = st.slider(
+        "Time range (s)",
+        min_value=t_min_data,
+        max_value=t_max_data,
+        value=(t_min_data, t_max_data),
+        step=t_step,
+        key="simo_trange",
+    )
+
+    filter_type = st.radio(
+        "Filter type",
+        ["None", "Lowpass", "Highpass", "Bandpass", "Bandstop"],
+        horizontal=True,
+        key="simo_filter_type",
+    )
+
+    filter_order = 4
+    cutoff_params = None
+
+    if filter_type != "None":
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            filter_order = st.slider(
+                "Filter order", min_value=1, max_value=8, value=4, key="simo_filter_order"
+            )
+        with fc2:
+            if filter_type in ("Lowpass", "Highpass"):
+                cutoff_params = float(
+                    st.number_input(
+                        "Cutoff (Hz)",
+                        min_value=0.1,
+                        max_value=float(fs / 2 * 0.99),
+                        value=min(10.0, float(fs / 4)),
+                        step=0.5,
+                        key="simo_cutoff",
+                    )
+                )
+            else:
+                bp1, bp2 = st.columns(2)
+                with bp1:
+                    low_cut = st.number_input(
+                        "Low cutoff (Hz)",
+                        min_value=0.1,
+                        max_value=float(fs / 2 * 0.49),
+                        value=min(5.0, float(fs / 8)),
+                        step=0.5,
+                        key="simo_cutoff_low",
+                    )
+                with bp2:
+                    high_cut = st.number_input(
+                        "High cutoff (Hz)",
+                        min_value=0.1,
+                        max_value=float(fs / 2 * 0.99),
+                        value=min(50.0, float(fs / 4)),
+                        step=0.5,
+                        key="simo_cutoff_high",
+                    )
+                cutoff_params = [float(low_cut), float(high_cut)]
+
+    n_samples = max(4, int(round((t_max - t_min) * fs)) + 1)
+    filt_label = filter_type if filter_type != "None" else "no filter"
+    st.caption(
+        f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}"
+    )
+
+    if st.checkbox("Show time history preview", value=True, key="simo_show_th"):
+        preview_cols = st.multiselect(
+            "Channels to preview",
+            options=data_cols,
+            default=data_cols[: min(4, len(data_cols))],
+            key="simo_preview_chs",
+        )
+        if preview_cols:
+            mask = (simo_df["time"] >= t_min) & (simo_df["time"] <= t_max)
+            df_trim = simo_df[mask]
+
+            filter_active = (
+                filter_type != "None"
+                and cutoff_params is not None
+                and not (isinstance(cutoff_params, list) and cutoff_params[0] >= cutoff_params[1])
+            )
+            if filter_active:
+                df_filt = trim_and_filter(
+                    simo_df, t_min, t_max, filter_type, filter_order, cutoff_params, fs
+                )
+
+            n_rows_prev = len(preview_cols)
+            fig_prev = make_subplots(
+                rows=n_rows_prev,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.05,
+                subplot_titles=preview_cols,
+            )
+
+            for pi, ch in enumerate(preview_cols):
+                if ch not in df_trim.columns:
+                    continue
+                row = pi + 1
+                fig_prev.add_trace(
+                    go.Scatter(
+                        x=df_trim["time"],
+                        y=df_trim[ch],
+                        mode="lines",
+                        name="Raw",
+                        line=dict(color="#1f77b4", width=1),
+                        showlegend=(pi == 0),
+                    ),
+                    row=row,
+                    col=1,
+                )
+                if filter_active:
+                    fig_prev.add_trace(
+                        go.Scatter(
+                            x=df_filt["time"],
+                            y=df_filt[ch],
+                            mode="lines",
+                            name="Filtered",
+                            line=dict(color="#ff7f0e", width=1.5, dash="dash"),
+                            showlegend=(pi == 0),
+                        ),
+                        row=row,
+                        col=1,
+                    )
+                fig_prev.update_yaxes(title_text=ch, row=row, col=1)
+                if row == n_rows_prev:
+                    fig_prev.update_xaxes(title_text="Time (s)", row=row, col=1)
+
+            fig_prev.update_layout(
+                height=max(250, 200 * n_rows_prev),
+                margin=dict(t=30, b=50, l=70, r=20),
+                legend=dict(orientation="h", y=-0.08),
+            )
+            st.plotly_chart(fig_prev, use_container_width=True)
+
+
+def _preview_proc():
+    _ok = not (
+        isinstance(cutoff_params, list)
+        and len(cutoff_params) == 2
+        and cutoff_params[0] >= cutoff_params[1]
+    )
+    return trim_and_filter(
+        simo_df, t_min, t_max,
+        filter_type if _ok else "None",
+        filter_order,
+        cutoff_params if _ok else None,
+        fs,
+    )
+
+
+# ── Section C: FFT preview expander ───────────────────────────────────────────
+with st.expander("FFT preview (optional)"):
+    fft_fmax = st.slider(
+        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
+        value=float(fs / 2), key="simo_fft_fmax",
+    )
+    st.plotly_chart(
+        fft_subplot(_preview_proc(), [input_channel] + sel_outputs, fs, fft_fmax),
+        use_container_width=True,
+    )
+
+# ── Section D: FRF preview expander ───────────────────────────────────────────
+with st.expander("FRF preview (optional)"):
+    frf_fmax = st.slider(
+        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
+        value=float(fs / 2), key="simo_frf_fmax",
+    )
+    st.plotly_chart(
+        frf_subplot(_preview_proc(), input_channel, sel_outputs, fs, frf_fmax),
+        use_container_width=True,
+    )
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 ctrl_col, chart_col = st.columns([1, 3])
@@ -54,21 +256,15 @@ with ctrl_col:
                              value=50, step=5, key="si_overlap")
         welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"],
                                  key="si_welch_win")
-        n_proc = len(processed_df)
-        nperseg_preview = max(4, n_proc // n_seg)
-        df_hz = sample_rate / nperseg_preview
+        nperseg_preview = max(4, n_samples // n_seg)
+        df_hz = fs / nperseg_preview
         st.caption(f"Δf ≈ {df_hz:.3f} Hz  |  {nperseg_preview} samples/segment")
 
     frf_est = st.radio("FRF estimator", ["H1", "H2", "Hv"],
                        horizontal=True, key="si_frf_est")
 
-    sel_outputs = st.multiselect(
-        "Output channels", options=available_outputs,
-        default=available_outputs, key="si_outputs",
-    )
-
     si_freqs_cached = st.session_state.get("si_freqs")
-    f_nyq = float(si_freqs_cached[-1]) if si_freqs_cached is not None else sample_rate / 2.0
+    f_nyq = float(si_freqs_cached[-1]) if si_freqs_cached is not None else fs / 2.0
     f_step = round(f_nyq / 500, 4) or 0.01
     f_min, f_max = st.slider(
         "Frequency range (Hz)", min_value=0.0, max_value=f_nyq,
@@ -146,25 +342,43 @@ if build_btn:
         st.error("Select at least one output channel.")
         st.stop()
 
+    _cutoffs_ok = not (
+        isinstance(cutoff_params, list)
+        and len(cutoff_params) == 2
+        and cutoff_params[0] >= cutoff_params[1]
+    )
+    if not _cutoffs_ok:
+        st.error("Filter: low cutoff must be less than high cutoff.")
+        st.stop()
+
+    with st.spinner("Pre-processing…"):
+        proc_df = trim_and_filter(
+            simo_df, t_min, t_max,
+            filter_type if _cutoffs_ok else "None",
+            filter_order,
+            cutoff_params if _cutoffs_ok else None,
+            fs,
+        )
+
     if frf_method == "Welch":
-        n_proc = len(processed_df)
+        n_proc = len(proc_df)
         nperseg = max(4, n_proc // n_seg)
         noverlap = int(nperseg * ovlp_pct / 100)
         H_cols: list = []
         last_res: dict = {}
         for ch in sel_outputs:
             last_res = compute_welch_quantities(
-                processed_df[input_channel].values,
-                processed_df[ch].values,
-                sample_rate, nperseg, noverlap, welch_win,
+                proc_df[input_channel].values,
+                proc_df[ch].values,
+                fs, nperseg, noverlap, welch_win,
             )
             H_cols.append(last_res[frf_est])
         freqs = last_res["freqs"]
     else:  # Single FFT
-        freqs, Sx = compute_fft(processed_df[input_channel].values, sample_rate, window="hanning")
+        freqs, Sx = compute_fft(proc_df[input_channel].values, fs, window="hanning")
         H_cols = []
         for ch in sel_outputs:
-            _, Sy = compute_fft(processed_df[ch].values, sample_rate, window="hanning")
+            _, Sy = compute_fft(proc_df[ch].values, fs, window="hanning")
             H_cols.append(compute_spectral_quantities(Sx, Sy)[frf_est])
 
     H_mat = np.column_stack(H_cols)
@@ -174,7 +388,7 @@ if build_btn:
 
     with st.spinner("Building stability diagram…"):
         table = build_stability_table(
-            H_band, f_band, sample_rate,
+            H_band, f_band, fs,
             max_order=max_order,
             method="plscf",
             df_thr=df_thr,

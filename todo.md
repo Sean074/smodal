@@ -1,6 +1,6 @@
 # Known bugs
 
-1. If on page 2 (FFT) the user saves a Welch analysis and then on page 3 (Spectral Analysis) tries to execute a Single FFT, an error occurs. This is by design — a Welch FFT from page 2 cannot be used as the input into the page 3 Single FFT analysis. The error message should be made clearer to the user.
+
 
 ---
 
@@ -14,4 +14,4 @@
 5. Force control / COLA — constant-overlap-and-add stepped sine with force-controlled amplitude for nonlinear structure characterisation.
 6. OMA overlay — compare EMA mode shapes against OMA results for in-service validation.
 7. Implement page 6 (Modal Assurance Criteria) — MAC matrix between identified mode shapes.
-8. ~~Implement page 7 (Wireframe)~~ — Done. 3-D mode shape animation on a NASTRAN BDF geometry model. `data/input/sample_plate.dat` is provided as an example geometry file.
+

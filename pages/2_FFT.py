@@ -8,7 +8,7 @@ st.set_page_config(page_title="FFT", layout="wide")
 st.title("FFT")
 
 if st.session_state.get("df") is None:
-    st.warning("No data loaded. Return to the Landing Page and load a data file.")
+    st.warning("No data loaded. Go to **Page 1 — Time History** and upload a data file.")
     st.stop()
 
 # ── Data source ───────────────────────────────────────────────────────────────

@@ -1,28 +1,149 @@
+import json
+from datetime import datetime
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import streamlit as st
-from scipy.signal import sosfiltfilt, sosfreqz
-from core.preprocess import build_butter_sos
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
+from scipy.signal import sosfiltfilt, sosfreqz
+
+from core.data_loader import load_csv, compute_summary
+from core.preprocess import build_butter_sos
 
 st.set_page_config(page_title="Time History", layout="wide")
 st.title("Time History")
 
-if st.session_state.get("df") is None:
-    st.warning("No data loaded. Return to the Landing Page and load a data file.")
+# ---------------------------------------------------------------------------
+# Section 1: Load data
+# ---------------------------------------------------------------------------
+st.header("Load Data")
+st.caption(
+    "CSV format: one column named **time** (seconds), remaining columns are data channels. "
+    "Multiple files may be merged if they share the same time axis."
+)
+
+uploaded_files = st.file_uploader(
+    "Select data file(s)", type=["csv"], accept_multiple_files=True, key="th_upload"
+)
+
+if uploaded_files:
+    file_names = sorted(f.name for f in uploaded_files)
+    if file_names != st.session_state.get("th_file_names"):
+        frames = []
+        errors = []
+        for f in uploaded_files:
+            df_i, err = load_csv(f)
+            if err:
+                errors.append(f"{f.name}: {err}")
+            else:
+                frames.append(df_i)
+
+        for e in errors:
+            st.error(e)
+
+        if frames:
+            if len(frames) == 1:
+                merged = frames[0]
+            else:
+                merged = frames[0]
+                for df_i in frames[1:]:
+                    data_cols = [c for c in df_i.columns if c != "time"]
+                    merged = merged.merge(df_i[["time"] + data_cols], on="time", how="inner")
+
+            st.session_state["df"] = merged
+            st.session_state["th_file_names"] = file_names
+            st.session_state["input_channel"] = None
+            st.session_state["output_channels"] = []
+            st.session_state["sample_rate"] = None
+            for k in ["processed_df", "processing_info", "fft_results",
+                      "spectral_results", "si_H_mat", "si_freqs",
+                      "si_cmif", "si_stability_table", "modal_results"]:
+                st.session_state.pop(k, None)
+
+df = st.session_state.get("df")
+if df is None:
+    st.info("Upload one or more CSV files above to begin.")
     st.stop()
 
-df = st.session_state.df
-fs = st.session_state.sample_rate
-input_ch = st.session_state.input_channel
-output_chs = st.session_state.output_channels
-all_channels = [input_ch] + list(output_chs) if input_ch else list(output_chs)
-time = df["time"].values
+channels = [c for c in df.columns if c != "time"]
 
 # ---------------------------------------------------------------------------
-# Controls
+# Section 2: Channel assignment
 # ---------------------------------------------------------------------------
+st.markdown("---")
+st.header("Channel Assignment")
+col_a, col_b = st.columns(2)
+
+with col_a:
+    current_input = st.session_state.get("input_channel")
+    input_ch = st.selectbox(
+        "Input channel (force / excitation)",
+        channels,
+        index=channels.index(current_input) if current_input in channels else 0,
+    )
+    st.session_state["input_channel"] = input_ch
+
+with col_b:
+    available_outputs = [c for c in channels if c != input_ch]
+    saved_outputs = st.session_state.get("output_channels", [])
+    default_outputs = [c for c in saved_outputs if c in available_outputs] or available_outputs
+    output_chs = st.multiselect(
+        "Output channels (accelerometers / responses)",
+        available_outputs,
+        default=default_outputs,
+    )
+    st.session_state["output_channels"] = output_chs
+
+# ---------------------------------------------------------------------------
+# Section 3: Data summary
+# ---------------------------------------------------------------------------
+summary_rows = []
+if output_chs:
+    st.markdown("---")
+    st.header("Data Summary")
+    summary_rows = compute_summary(df, input_ch, output_chs)
+    st.session_state["sample_rate"] = summary_rows[0]["Sample Rate (Hz)"]
+    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+# ---------------------------------------------------------------------------
+# Section 4: Analysis log
+# ---------------------------------------------------------------------------
+st.markdown("---")
+st.header("Analysis Log")
+st.session_state["comment"] = st.text_area(
+    "Analysis Comment", value=st.session_state.get("comment", ""), height=80
+)
+
+if st.button("Save Analysis Log", type="primary"):
+    if not summary_rows:
+        st.warning("Assign at least one output channel before saving the log.")
+    else:
+        log = {
+            "date": datetime.now().isoformat(timespec="seconds"),
+            "analysis_name": st.session_state.get("analysis_name", ""),
+            "analyst": st.session_state.get("analyst", ""),
+            "description": st.session_state.get("description", ""),
+            "comment": st.session_state.get("comment", ""),
+            "data_summary": summary_rows,
+        }
+        safe_name = (st.session_state.get("analysis_name") or "analysis").replace(" ", "_")
+        log_path = Path("data/output") / f"{safe_name}_log.json"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text(json.dumps(log, indent=2))
+        st.success(f"Log saved to `{log_path}`")
+
+if not output_chs:
+    st.stop()
+
+# ---------------------------------------------------------------------------
+# Time history display
+# ---------------------------------------------------------------------------
+fs = st.session_state["sample_rate"]
+all_channels = [input_ch] + list(output_chs)
+time = df["time"].values
+
 st.markdown("---")
 ctrl_col, filt_col = st.columns([1, 1])
 
@@ -227,11 +348,13 @@ if sos is not None and not filter_error:
             subplot_titles=("Gain (dB)", "Phase (°)"),
         )
         fig_fr.add_trace(
-            go.Scatter(x=w, y=gain_db, mode="lines", line=dict(color="#1f77b4", width=1.5), showlegend=False),
+            go.Scatter(x=w, y=gain_db, mode="lines",
+                       line=dict(color="#1f77b4", width=1.5), showlegend=False),
             row=1, col=1,
         )
         fig_fr.add_trace(
-            go.Scatter(x=w, y=phase_deg, mode="lines", line=dict(color="#ff7f0e", width=1.5), showlegend=False),
+            go.Scatter(x=w, y=phase_deg, mode="lines",
+                       line=dict(color="#ff7f0e", width=1.5), showlegend=False),
             row=2, col=1,
         )
         fig_fr.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
@@ -241,7 +364,8 @@ if sos is not None and not filter_error:
             height=420,
             margin=dict(t=40, b=40, l=60, r=20),
             title_text=f"{filter_type}  |  order {order}  |  "
-                       + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass") else f"{f_lo}–{f_hi} Hz"),
+                       + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass")
+                          else f"{f_lo}–{f_hi} Hz"),
         )
         st.plotly_chart(fig_fr, use_container_width=True)
 

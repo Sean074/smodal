@@ -27,8 +27,8 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 
 | File | Purpose | Status |
 |---|---|---|
-| `app.py` | Landing page — loads CSV data, assigns channels, saves analysis log | Implemented |
-| `pages/1_Time_History.py` | Time history plots, trim range, Butterworth filtering | Implemented |
+| `app.py` | Landing page — analysis metadata (name, analyst, description) and workflow overview | Implemented |
+| `pages/1_Time_History.py` | Load CSV data, assign channels, time history plots, trim range, Butterworth filtering, save analysis log | Implemented |
 | `pages/2_FFT.py` | FFT with windowing options, Gain/Phase or Real/Imaginary display | Implemented |
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, PSD, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
@@ -44,15 +44,20 @@ All pages communicate through `st.session_state`. Keys and their owners:
 
 | Key | Set by | Consumed by |
 |---|---|---|
-| `df` | `app.py` | all pages |
-| `input_channel` | `app.py` | all pages |
-| `output_channels` | `app.py` | all pages |
-| `sample_rate` | `app.py` | all pages |
-| `analysis_name`, `analyst`, `description`, `comment` | `app.py` | log save |
-| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py`, `4_SIMO.py` |
+| `df` | `1_Time_History.py` (load) | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `input_channel` | `1_Time_History.py` (channel assign) | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `output_channels` | `1_Time_History.py` (channel assign) | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `sample_rate` | `1_Time_History.py` (data summary) | `2_FFT.py`, `3_Spectral_Analysis.py` |
+| `analysis_name`, `analyst`, `description` | `app.py` | `1_Time_History.py` (log save) |
+| `comment` | `1_Time_History.py` | `1_Time_History.py` (log save) |
+| `th_file_names` | `1_Time_History.py` (load) | `1_Time_History.py` (re-load guard) |
+| `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
 | `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
+| `simo_df` | `4_SIMO.py` (load) | `4_SIMO.py` (Build, preview) |
+| `simo_sample_rate` | `4_SIMO.py` (load) | `4_SIMO.py` (`fs`) |
+| `simo_file_name` | `4_SIMO.py` (load) | `4_SIMO.py` (re-load guard) |
 | `si_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (charts, Extract) |
 | `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
 | `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) — shape `(n_freqs, 2)` |
@@ -73,10 +78,10 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
-Every page guards against missing data with:
+Pages 2 and 3 guard against missing data with:
 ```python
 if st.session_state.get("df") is None:
-    st.warning(...)
+    st.warning("Go to Page 1 — Time History and upload a data file.")
     st.stop()
 ```
 
