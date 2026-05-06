@@ -38,6 +38,12 @@ with ctrl_col:
                 "No FFT results available. Go to the **FFT** page, select channels, "
                 "and click **Compute & Save FFT**."
             )
+        elif fft_res.get("method") != "single_fft":
+            st.warning(
+                "The saved FFT result is a **Welch** analysis and cannot be used as the "
+                "input for a Single FFT spectral analysis. Return to the **FFT** page, "
+                "switch the method to **Single FFT**, recompute, and save."
+            )
         else:
             fft_channels: list = fft_res.get("channels", [])
             if input_channel not in fft_channels:
