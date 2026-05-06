@@ -48,9 +48,10 @@ st.markdown(
 3. **Spectral Analysis** — compute FRFs (H1 / H2 / Hv), PSDs, and coherence.
 4. **SIMO** — single-reference system identification (pLSCF stability diagram, mode extraction).
 5. **MIMO** — multi-reference system identification from two independent excitation runs.
-6. **MAC** — Modal Assurance Criterion matrix between identified mode shapes.
+6. **MAC** *(in work)* — Modal Assurance Criterion matrix between identified mode shapes.
 7. **Wireframe** — 3-D mode shape visualisation.
+8. **Method** — signal-processing reference: derivations, algorithms, and worked examples.
 
-> **MIMO users:** load your data directly on the MIMO page — it has its own file uploaders and does not depend on pages 1–3.
+> **SIMO and MIMO users:** load your data directly on the SIMO or MIMO page — it has its own file uploaders and does not depend on pages 1–3.
 """
 )
