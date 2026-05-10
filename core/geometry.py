@@ -1,7 +1,9 @@
-"""NASTRAN BDF wireframe geometry: parser, RBE3 interpolation, and Plotly 3D figures.
+"""NASTRAN BDF/F06 wireframe geometry: parsers, RBE3 interpolation, and Plotly 3D figures.
 
-Parses only GRID, PLOTEL, and RBE3 cards — all other structural cards are silently
-skipped (no CBAR, MAT1, PBAR, SPC, etc. are required).
+BDF parser handles only GRID, PLOTEL, and RBE3 cards — all other structural cards are
+silently skipped (no CBAR, MAT1, PBAR, SPC, etc. are required).
+
+F06 parser handles SOL 103 normal-modes output: real eigenvalue table and eigenvectors.
 
 Adapted from sbeam/sbeam/parser/bdf_reader.py and sbeam/sbeam/viewer/geometry.py.
 """
@@ -9,6 +11,7 @@ Adapted from sbeam/sbeam/parser/bdf_reader.py and sbeam/sbeam/viewer/geometry.py
 from __future__ import annotations
 
 import math
+import re
 import warnings
 from dataclasses import dataclass, field
 from typing import IO, Union
@@ -236,6 +239,102 @@ def parse_wireframe_bdf(file_like: Union[IO, str]) -> GeomModel:
 
 
 # ---------------------------------------------------------------------------
+# F06 SOL 103 parser
+# ---------------------------------------------------------------------------
+
+_RE_EIGENVAL_LINE = re.compile(
+    r"^\s+(\d+)\s+[\d.E+\-]+\s+[\d.E+\-]+\s+([\d.E+\-]+)",
+    re.IGNORECASE,
+)
+_RE_EIGENVEC_HDR = re.compile(
+    r"E\s+I\s+G\s+E\s+N\s+V\s+E\s+C\s+T\s+O\s+R\s+NO\.\s+(\d+)",
+    re.IGNORECASE,
+)
+# Identify a GRID data row: leading integer, then "G", then numbers
+_RE_EIGENVEC_ROW_ID = re.compile(r"^\s+(\d+)\s+G\s+", re.IGNORECASE)
+# Extract all NASTRAN-format floating-point numbers (handles no-space adjacent negatives)
+_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]\d+", re.IGNORECASE)
+
+
+def parse_f06(file_like: Union[IO, str]) -> dict:
+    """Parse a NASTRAN SOL 103 F06 file and return frequencies and mode shapes.
+
+    Parameters
+    ----------
+    file_like : file-like object or filepath string
+
+    Returns
+    -------
+    dict with keys:
+        'frequencies_hz' : np.ndarray, shape (n_modes,)
+        'mode_shapes'    : list of dicts, len n_modes
+                           each dict maps gid (int) -> np.ndarray([T1, T2, T3])
+    """
+    if isinstance(file_like, str):
+        with open(file_like, "r") as fh:
+            lines = fh.readlines()
+    else:
+        content = file_like.read()
+        if isinstance(content, bytes):
+            content = content.decode("utf-8", errors="replace")
+        lines = content.splitlines()
+
+    frequencies_hz: list = []
+    mode_shapes: list = []
+
+    in_eigenval = False
+    current_mode_idx: int = -1
+    current_shape: dict = {}
+
+    for line in lines:
+        # Detect eigenvalue section header
+        if "R E A L" in line and "E I G E N V A L U E S" in line:
+            in_eigenval = True
+            continue
+
+        # Parse eigenvalue table rows (skip blank lines and column headers inside section)
+        if in_eigenval:
+            if not line.strip():
+                # Blank line only ends the section if we already captured some rows
+                if frequencies_hz:
+                    in_eigenval = False
+                continue
+            m = _RE_EIGENVAL_LINE.match(line)
+            if m:
+                frequencies_hz.append(float(m.group(2)))
+            continue
+
+        # Detect eigenvector section header
+        m_hdr = _RE_EIGENVEC_HDR.search(line)
+        if m_hdr:
+            # Save previous mode if any
+            if current_mode_idx >= 0:
+                mode_shapes.append(current_shape)
+            current_mode_idx = int(m_hdr.group(1)) - 1  # 0-based
+            current_shape = {}
+            continue
+
+        # Parse eigenvector data rows
+        if current_mode_idx >= 0:
+            m_id = _RE_EIGENVEC_ROW_ID.match(line)
+            if m_id:
+                gid = int(m_id.group(1))
+                # Extract all floats after the "G" marker; need T1, T2, T3 (first three)
+                nums = _RE_FLOAT.findall(line[m_id.end():])
+                if len(nums) >= 3:
+                    current_shape[gid] = np.array([float(nums[0]), float(nums[1]), float(nums[2])])
+
+    # Flush last mode
+    if current_mode_idx >= 0:
+        mode_shapes.append(current_shape)
+
+    return {
+        "frequencies_hz": np.array(frequencies_hz),
+        "mode_shapes": mode_shapes,
+    }
+
+
+# ---------------------------------------------------------------------------
 # RBE3 displacement interpolation
 # ---------------------------------------------------------------------------
 
@@ -339,6 +438,20 @@ def _add_triad(fig: go.Figure, geom: GeomModel) -> None:
         ))
 
 
+_CAMERA_VIEWS: dict = {
+    "3D": None,
+    "X-Y": dict(eye=dict(x=0, y=0, z=2.5), up=dict(x=0, y=1, z=0)),
+    "X-Z": dict(eye=dict(x=0, y=-2.5, z=0), up=dict(x=0, y=0, z=1)),
+    "Y-Z": dict(eye=dict(x=2.5, y=0, z=0), up=dict(x=0, y=0, z=1)),
+}
+
+
+def _apply_camera(fig: go.Figure, view: str) -> None:
+    camera = _CAMERA_VIEWS.get(view)
+    if camera is not None:
+        fig.update_layout(scene_camera=camera)
+
+
 def _apply_layout(fig: go.Figure) -> None:
     fig.update_layout(
         scene=dict(aspectmode="data", xaxis_title="X", yaxis_title="Y", zaxis_title="Z"),
@@ -352,7 +465,7 @@ def _apply_layout(fig: go.Figure) -> None:
 # Public figure builders
 # ---------------------------------------------------------------------------
 
-def build_static_figure(geom: GeomModel) -> go.Figure:
+def build_static_figure(geom: GeomModel, view: str = "3D") -> go.Figure:
     """Return a Plotly 3D figure of the undeformed wireframe geometry."""
     fig = go.Figure()
     coords = _undeformed_coords(geom)
@@ -416,6 +529,7 @@ def build_static_figure(geom: GeomModel) -> go.Figure:
 
     _add_triad(fig, geom)
     _apply_layout(fig)
+    _apply_camera(fig, view)
     return fig
 
 
@@ -425,6 +539,8 @@ def build_mode_figure(
     freq_hz: float = 0.0,
     scale: float = 1.0,
     n_frames: int = 20,
+    view: str = "3D",
+    accel_gids: set | None = None,
 ) -> go.Figure:
     """Return an animated Plotly 3D figure cycling through one mode shape.
 
@@ -436,6 +552,7 @@ def build_mode_figure(
     freq_hz    : natural frequency for the figure title
     scale      : peak displacement amplitude applied to gid_disps
     n_frames   : number of animation frames (one full cycle)
+    view       : camera preset — '3D', 'X-Y', 'X-Z', or 'Y-Z'
     """
     fig = go.Figure()
     undeformed = _undeformed_coords(geom)
@@ -456,6 +573,11 @@ def build_mode_figure(
     dxs0, dys0, dzs0 = _plotel_line_coords(geom, def_0) if geom.plotels else ([], [], [])
     gxs0, gys0, gzs0 = _grid_coord_lists(geom, def_0)
 
+    accel_set = accel_gids or set()
+    gids_sorted = sorted(geom.grids.keys())
+    grid_colors = ["#cc2222" if g in accel_set else "#ff7f0e" for g in gids_sorted]
+    grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
+
     fig.add_trace(go.Scatter3d(
         x=dxs0, y=dys0, z=dzs0,
         mode="lines",
@@ -464,8 +586,11 @@ def build_mode_figure(
     ))
     fig.add_trace(go.Scatter3d(
         x=gxs0, y=gys0, z=gzs0,
-        mode="markers",
-        marker=dict(size=6, color="#ff7f0e"),
+        mode="markers+text" if accel_set else "markers",
+        marker=dict(size=6, color=grid_colors),
+        text=grid_texts,
+        textposition="top center",
+        textfont=dict(size=10, color="#cc2222"),
         name="Mode GRIDs",
         showlegend=False,
     ))
@@ -513,4 +638,75 @@ def build_mode_figure(
         )],
     )
     _apply_layout(fig)
+    _apply_camera(fig, view)
+    return fig
+
+
+def build_static_mode_figure(
+    geom: GeomModel,
+    gid_disps: dict,
+    freq_hz: float = 0.0,
+    scale: float = 1.0,
+    phase_deg: float = 90.0,
+    view: str = "3D",
+    accel_gids: set | None = None,
+) -> go.Figure:
+    """Return a static (non-animated) Plotly 3D figure frozen at a given phase angle.
+
+    Parameters
+    ----------
+    geom      : GeomModel geometry
+    gid_disps : {gid: np.ndarray(3)} — normalised displacement per GRID
+    freq_hz   : natural frequency for the figure title
+    scale     : displacement scale factor
+    phase_deg : phase angle in degrees (0–360); 90° = peak positive
+    view      : camera preset — '3D', 'X-Y', 'X-Z', or 'Y-Z'
+    """
+    amplitude = scale * math.sin(math.radians(phase_deg))
+
+    fig = go.Figure()
+    undeformed = _undeformed_coords(geom)
+
+    if geom.plotels:
+        xs, ys, zs = _plotel_line_coords(geom, undeformed)
+        fig.add_trace(go.Scatter3d(
+            x=xs, y=ys, z=zs,
+            mode="lines",
+            line=dict(color="#cccccc", width=2),
+            name="Undeformed",
+            opacity=0.5,
+        ))
+
+    def_c = _deformed_coords(geom, gid_disps, amplitude)
+
+    if geom.plotels:
+        dxs, dys, dzs = _plotel_line_coords(geom, def_c)
+        fig.add_trace(go.Scatter3d(
+            x=dxs, y=dys, z=dzs,
+            mode="lines",
+            line=dict(color="#ff7f0e", width=4),
+            name="Mode shape",
+        ))
+
+    accel_set = accel_gids or set()
+    gids_sorted = sorted(geom.grids.keys())
+    grid_colors = ["#cc2222" if g in accel_set else "#ff7f0e" for g in gids_sorted]
+    grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
+
+    gxs, gys, gzs = _grid_coord_lists(geom, def_c)
+    fig.add_trace(go.Scatter3d(
+        x=gxs, y=gys, z=gzs,
+        mode="markers+text" if accel_set else "markers",
+        marker=dict(size=6, color=grid_colors),
+        text=grid_texts,
+        textposition="top center",
+        textfont=dict(size=10, color="#cc2222"),
+        name="Mode GRIDs",
+        showlegend=False,
+    ))
+
+    _add_triad(fig, geom)
+    fig.update_layout(title=f"Mode shape  —  f = {freq_hz:.4g} Hz  (φ = {phase_deg:.0f}°)")
+    _apply_layout(fig)
+    _apply_camera(fig, view)
     return fig

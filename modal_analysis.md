@@ -430,6 +430,11 @@ Planned: compute and display MAC matrix between identified mode shapes.
 
 3-D animated mode shape visualisation on a NASTRAN BDF wireframe geometry.
 
+## Page 78 — Method
+
+Provides the analytical methods used, with worked examples.
+
+
 ### Controls
 
 **Geometry (Section 1)**

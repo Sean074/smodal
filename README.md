@@ -56,17 +56,17 @@ Upload it on the landing page to explore the full workflow without your own data
 
 | Step | Page | Purpose |
 |---|---|---|
-| 0 | Landing page | Upload CSV(s), assign input / output channels |
+| 0 | Landing page | Entry point |
 | 1 | Time History | Trim time window, apply Butterworth filter |
 | 2 | FFT | Inspect spectra, save FFT for downstream use |
 | 3 | Spectral Analysis | Auto-power, PSD, FRFs (H1/H2/Hv), coherence |
 | 4 | SIMO EMA | Single-shaker system identification (pLSCF) |
 | 5 | MIMO EMA | Dual-shaker system identification (multi-reference pLSCF) |
 | 6 | MAC | Modal Assurance Criteria plot *(stub)* |
-| 7 | Wireframe | 3-D mode shape visualisation *(stub)* |
+| 7 | Wireframe | 3-D mode shape visualisation |
+| 8 | Methods | Explanation of the analytical methods used in MODAL_ANALYSIS |
 
-Pages 1–3 feed into each other in sequence and can be used independently as QC tools. Page 4 (SIMO) reads preprocessed data from Page 1 and computes its own FRFs — Pages 2 and 3 are not required for system identification. Page 5 (MIMO) loads its own CSV files independently and does not require Pages 1–4.
-
+Pages 1–3 feed into each other in sequence and can be used independently as QC tools. Page 4 (SIMO) and Page 5 (MIMO) reads CSV data directly and computes its own FRFs — Pages 1, 2 and 3 are not required for system identification.
 ---
 
 ## Documentation
@@ -75,5 +75,3 @@ Pages 1–3 feed into each other in sequence and can be used independently as QC
 |---|---|---|
 | `modal_analysis.md` | Developers / analysts | Full page-by-page UI spec, controls, algorithms, and session state |
 | `analysis_method.ipynb` | Analysts / students | Signal processing and system ID methods with worked Python examples |
-| `CLAUDE.md` | AI coding assistants | Architecture, shared state map, core module API reference |
-| `todo.md` | Developers | Known bugs and planned features |
