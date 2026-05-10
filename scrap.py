@@ -9,9 +9,11 @@ import pandas as pd
 
 # --- Parameters ---
 duration = 15
-sample_rate = 100
+sample_rate = 200
 dt = 1 / sample_rate
 time = np.arange(0, duration, dt)
+noise_level = 0.5   # noise std as fraction of each signal's RMS (0 = no noise)
+rng = np.random.default_rng(seed=42)
 
 # --- Mode definitions ---
 
@@ -125,6 +127,18 @@ a_Node6_g  = disp_to_accel_g(x_Node6,  dt)
 
 force = np.zeros(len(time))
 force[0] = float(sample_rate)   # 1/dt so ∫F dt = 1 N·s
+
+# --- Add noise ---
+
+def add_noise(signal, level, rng):
+    if level <= 0.0:
+        return signal
+    std = level * np.sqrt(np.mean(signal ** 2))
+    return signal + rng.normal(0.0, std, len(signal))
+
+a_Node11_g = add_noise(a_Node11_g, noise_level, rng)
+a_Node8_g  = add_noise(a_Node8_g,  noise_level, rng)
+a_Node6_g  = add_noise(a_Node6_g,  noise_level, rng)
 
 # --- Output CSV ---
 
