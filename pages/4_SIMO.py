@@ -375,10 +375,10 @@ if build_btn:
             H_cols.append(last_res[frf_est])
         freqs = last_res["freqs"]
     else:  # Single FFT
-        freqs, Sx = compute_fft(proc_df[input_channel].values, fs, window="hanning")
+        freqs, Sx = compute_fft(proc_df[input_channel].values, fs, window="uniform")
         H_cols = []
         for ch in sel_outputs:
-            _, Sy = compute_fft(proc_df[ch].values, fs, window="hanning")
+            _, Sy = compute_fft(proc_df[ch].values, fs, window="uniform")
             H_cols.append(compute_spectral_quantities(Sx, Sy)[frf_est])
 
     H_mat = np.column_stack(H_cols)

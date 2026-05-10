@@ -10,7 +10,7 @@ from core.geometry import (
 )
 
 st.set_page_config(page_title="Wireframe", layout="wide")
-st.title("7 – Wireframe Mode Shape")
+st.title("Wireframe Mode Shape")
 
 # ---------------------------------------------------------------------------
 # 1. BDF geometry upload  (no prerequisites — works standalone)
