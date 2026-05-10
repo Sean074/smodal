@@ -540,6 +540,7 @@ def build_mode_figure(
     scale: float = 1.0,
     n_frames: int = 20,
     view: str = "3D",
+    accel_gids: set | None = None,
 ) -> go.Figure:
     """Return an animated Plotly 3D figure cycling through one mode shape.
 
@@ -572,6 +573,11 @@ def build_mode_figure(
     dxs0, dys0, dzs0 = _plotel_line_coords(geom, def_0) if geom.plotels else ([], [], [])
     gxs0, gys0, gzs0 = _grid_coord_lists(geom, def_0)
 
+    accel_set = accel_gids or set()
+    gids_sorted = sorted(geom.grids.keys())
+    grid_colors = ["#cc2222" if g in accel_set else "#ff7f0e" for g in gids_sorted]
+    grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
+
     fig.add_trace(go.Scatter3d(
         x=dxs0, y=dys0, z=dzs0,
         mode="lines",
@@ -580,8 +586,11 @@ def build_mode_figure(
     ))
     fig.add_trace(go.Scatter3d(
         x=gxs0, y=gys0, z=gzs0,
-        mode="markers",
-        marker=dict(size=6, color="#ff7f0e"),
+        mode="markers+text" if accel_set else "markers",
+        marker=dict(size=6, color=grid_colors),
+        text=grid_texts,
+        textposition="top center",
+        textfont=dict(size=10, color="#cc2222"),
         name="Mode GRIDs",
         showlegend=False,
     ))
@@ -640,6 +649,7 @@ def build_static_mode_figure(
     scale: float = 1.0,
     phase_deg: float = 90.0,
     view: str = "3D",
+    accel_gids: set | None = None,
 ) -> go.Figure:
     """Return a static (non-animated) Plotly 3D figure frozen at a given phase angle.
 
@@ -678,11 +688,19 @@ def build_static_mode_figure(
             name="Mode shape",
         ))
 
+    accel_set = accel_gids or set()
+    gids_sorted = sorted(geom.grids.keys())
+    grid_colors = ["#cc2222" if g in accel_set else "#ff7f0e" for g in gids_sorted]
+    grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
+
     gxs, gys, gzs = _grid_coord_lists(geom, def_c)
     fig.add_trace(go.Scatter3d(
         x=gxs, y=gys, z=gzs,
-        mode="markers",
-        marker=dict(size=6, color="#ff7f0e"),
+        mode="markers+text" if accel_set else "markers",
+        marker=dict(size=6, color=grid_colors),
+        text=grid_texts,
+        textposition="top center",
+        textfont=dict(size=10, color="#cc2222"),
         name="Mode GRIDs",
         showlegend=False,
     ))

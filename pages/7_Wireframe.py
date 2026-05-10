@@ -28,7 +28,7 @@ exp_channels: list | None = None
 n_exp_modes: int = 0
 mapping: list = []
 
-with st.expander("Geometry Setup", expanded=True):
+with st.expander("Experimental Setup", expanded=True):
     col_bdf, col_modal = st.columns(2)
 
     with col_bdf:
@@ -208,7 +208,7 @@ has_fe_data = geom_fe is not None and f06_data is not None and len(f06_data["fre
 
 if not has_test_data and not has_fe_data:
     st.info(
-        "Upload a Test BDF and load experimental modal results in **Geometry Setup** above.  \n"
+        "Upload a Test BDF and load experimental modal results in **Experimental Setup** above.  \n"
         "Optionally, expand **Analytical Results** to add an FE model comparison."
     )
     st.stop()
@@ -230,6 +230,19 @@ scale = ctrl3.slider("Amplitude scale", 0.01, 100.0, 1.0, step=0.01, format="%.2
 n_frames = 20
 if display_mode == "Animate":
     n_frames = int(ctrl4.number_input("Frames", min_value=4, max_value=60, value=20, step=1))
+
+exp_phase_offset_deg = 0
+ana_phase_offset_deg = 0
+if has_test_data:
+    exp_phase_offset_deg = ctrl4.slider(
+        "Exp phase offset (°)", 0, 360, 0, step=5, key="wf_exp_phase_offset",
+        help="Rotate experimental mode shape before display. Re-click 'Show Test' to apply.",
+    )
+if has_fe_data:
+    ana_phase_offset_deg = ctrl4.slider(
+        "FE phase offset (°)", 0, 360, 0, step=5, key="wf_ana_phase_offset",
+        help="Rotate analytical mode shape before display. Re-click 'Show Model' to apply.",
+    )
 
 # ---------------------------------------------------------------------------
 # 5. Display — single column (test) or two columns when FE data is present
@@ -256,7 +269,8 @@ if has_fe_data:
             peak = max((np.linalg.norm(v) for v in raw.values()), default=1.0)
             if peak == 0.0:
                 peak = 1.0
-            gid_disps_fe = {gid: v / peak for gid, v in raw.items()}
+            cos_rot = np.cos(np.radians(ana_phase_offset_deg))
+            gid_disps_fe = {gid: (v / peak) * cos_rot for gid, v in raw.items()}
             for gid in geom_fe.grids:
                 gid_disps_fe.setdefault(gid, np.zeros(3))
             st.session_state["wf_gid_disps_fe"] = gid_disps_fe
@@ -277,7 +291,7 @@ with col_test:
         st.markdown("### Test (Experiment)")
 
     if not has_test_data:
-        st.info("Upload a Test BDF and load experimental modal results in Geometry Setup above.")
+        st.info("Upload a Test BDF and load experimental modal results in Experimental Setup above.")
     else:
         exp_labels = [
             f"Mode {i + 1}  —  {exp_fn[i]:.4g} Hz  (ξ = {exp_xi[i] * 100:.2f}%)"
@@ -288,10 +302,11 @@ with col_test:
         )
 
         if st.button("Show Test", type="primary", key="wf_show_test"):
+            phase_rot = np.exp(1j * np.radians(exp_phase_offset_deg))
             if exp_mode_shapes.ndim == 3:
-                raw_shape = np.real(exp_mode_shapes[:, 0, exp_mode_idx])
+                raw_shape = np.real(exp_mode_shapes[:, 0, exp_mode_idx] * phase_rot)
             else:
-                raw_shape = np.real(exp_mode_shapes[:, exp_mode_idx])
+                raw_shape = np.real(exp_mode_shapes[:, exp_mode_idx] * phase_rot)
             peak = np.max(np.abs(raw_shape))
             if peak > 0.0:
                 raw_shape = raw_shape / peak
@@ -302,6 +317,17 @@ with col_test:
                 d[dof_idx] = float(raw_shape[ch_idx])
                 meas_disps[gid] = meas_disps.get(gid, np.zeros(3)) + d
 
+            # Seed any grid referenced as an RBE3 independent node but absent from
+            # meas_disps (e.g. fixed root) at zero so linear interpolation honours the BC.
+            rbe3_ind_grids = {
+                gid
+                for rbe3 in geom_test.rbe3s.values()
+                for _wt, _c, gids in rbe3.wt_gc
+                for gid in gids
+            }
+            for gid in rbe3_ind_grids - meas_disps.keys():
+                meas_disps[gid] = np.zeros(3)
+
             gid_disps_test = expand_rbe3_displacements(geom_test, meas_disps)
             st.session_state["wf_gid_disps_test"] = gid_disps_test
             st.session_state["wf_test_freq"] = float(exp_fn[exp_mode_idx])
@@ -309,8 +335,9 @@ with col_test:
         if st.session_state.get("wf_gid_disps_test") is not None:
             _gd = st.session_state["wf_gid_disps_test"]
             _freq = st.session_state["wf_test_freq"]
+            _accel_gids = {gid for gid, _dof in mapping}
             if display_mode == "Animate":
-                fig = build_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), n_frames=n_frames, view=view)
+                fig = build_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), n_frames=n_frames, view=view, accel_gids=_accel_gids)
             else:
-                fig = build_static_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view)
+                fig = build_static_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view, accel_gids=_accel_gids)
             st.plotly_chart(fig, use_container_width=True)
