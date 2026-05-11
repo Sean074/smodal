@@ -334,3 +334,23 @@ def modal_fit_nmse(H_measured: np.ndarray, H_syn: np.ndarray) -> np.ndarray:
     err = H_measured - H_syn
     nmse = np.sum(np.abs(err) ** 2, axis=0) / (np.sum(np.abs(H_measured) ** 2, axis=0) + 1e-30)
     return 10.0 * np.log10(nmse + 1e-30)
+
+
+def compute_mac(phi_ref: np.ndarray, phi_comp: np.ndarray) -> np.ndarray:
+    """MAC matrix between two sets of mode shapes.
+
+    Parameters
+    ----------
+    phi_ref  : (n_dof, n_ref)  — reference (FE) mode shapes, real or complex
+    phi_comp : (n_dof, n_comp) — comparison (exp) mode shapes, real or complex
+
+    Returns
+    -------
+    mac : (n_ref, n_comp) MAC values in [0, 1]
+    """
+    num = np.abs(phi_ref.conj().T @ phi_comp) ** 2
+    denom = (
+        np.sum(np.abs(phi_ref) ** 2, axis=0)[:, None]
+        * np.sum(np.abs(phi_comp) ** 2, axis=0)[None, :]
+    )
+    return num / np.maximum(denom, np.finfo(float).tiny)
