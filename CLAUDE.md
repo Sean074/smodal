@@ -33,8 +33,10 @@ This is a multi-page **Streamlit** app for structural dynamics modal analysis / 
 | `pages/3_Spectral_Analysis.py` | Auto/cross power, PSD, coherence, FRF (H1, H2, Hv) — tabbed layout | Implemented |
 | `pages/4_SIMO.py` | System Identification — SIMO EMA (stability diagram, mode extraction) | Implemented |
 | `pages/5_MIMO.py` | MIMO EMA — multi-reference pLSCF (PolyMAX) | Implemented |
-| `pages/6_MAC.py` | Modal Assurance Criteria plot | Stub |
-| `pages/7_Wireframe.py` | 3-D wireframe mode shape visualisation | Implemented |
+| `pages/6_OMA.py` | Operational Modal Analysis — FDD (output-only, no force) | Implemented |
+| `pages/7_MAC.py` | Modal Assurance Criteria plot | Implemented |
+| `pages/8_Wireframe.py` | 3-D wireframe mode shape visualisation | Implemented |
+| `pages/9_Method.py` | Analysis method reference | Implemented |
 
 `todo.md` tracks known bugs and development notes.
 
@@ -65,7 +67,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Build) |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
-| `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
+| `modal_results` | `4_SIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
@@ -76,7 +78,16 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
-| `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
+| `mimo_modal_results` | `5_MIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
+| `oma_df` | `6_OMA.py` (load) | `6_OMA.py` |
+| `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` |
+| `oma_file_name` | `6_OMA.py` (load) | `6_OMA.py` (re-load guard) |
+| `oma_freqs` | `6_OMA.py` (Build) | `6_OMA.py` (plot, Extract) |
+| `oma_sv` | `6_OMA.py` (Build) | `6_OMA.py` (plot, Extract) — shape `(n_freqs, n_out)` |
+| `oma_svecs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) — shape `(n_freqs, n_out, n_out)` |
+| `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` — shape `(n_freqs, n_out, n_out)` |
+| `oma_sel_outputs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) |
+| `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 
 Pages 2 and 3 guard against missing data with:
 ```python
@@ -101,6 +112,7 @@ if st.session_state.get("df") is None:
 - `compute_psd(signal, sample_rate, nperseg, noverlap, window)` — single-channel auto-PSD via Welch; returns `(freqs_hz, Pxx)`.
 - `compute_spectral_quantities(Sx, Sy)` — computes single-realisation spectral quantities from complex FFT arrays; returns dict with `Gxx`, `Gyy`, `Gyx`, `Gxy`, `H1`, `H2`, `Hv`, `gamma2`.
 - `compute_welch_quantities(x, y, sample_rate, nperseg, noverlap, window)` — Welch-averaged spectral quantities using `scipy.signal.welch` and `csd`; returns the same keys as above plus `freqs`.
+- `compute_output_spectral_matrix(signals, fs, nperseg, noverlap, window)` — output-only PSD matrix for OMA; `signals` is `(n_samples, n_out)`; returns `(freqs, Syy)` where `Syy` is `(n_freqs, n_out, n_out)` complex, conjugate symmetric.
 
 Windows supported by `compute_fft`: `uniform` (boxcar), `hanning`, `flattop`, `force` (hann), `exponential`.
 Windows supported by `compute_welch_quantities`: any scipy window name (typically `hann`, `flattop`, `boxcar`).
@@ -116,6 +128,9 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 - `extract_residues(H, freqs, poles)` — complex LS fit of partial-fraction basis to H; returns `(n_outputs, n_modes)` complex residues.
 - `synthesize_frf(freqs, poles, residues)` — partial-fraction sum; returns `(n_freqs, n_outputs)` complex.
 - `modal_fit_nmse(H_measured, H_syn)` — NMSE per output channel in dB (lower = better).
+- `fdd_svd(Syy)` — SVD of the output spectral matrix at every frequency; `Syy` is `(n_freqs, n_out, n_out)`; returns `(sv, svecs)` where `sv[:,0]` is the Power CMIF.
+- `fdd_damping(sv1, freqs, peak_idx)` — half-power bandwidth damping estimate; returns `(xi_pct, f_a, f_b)`.
+- `compute_mac(phi_ref, phi_comp)` — MAC matrix `(n_ref, n_comp)` between two sets of mode shapes.
 
 #### `core/mimo.py`
 - `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
@@ -135,6 +150,6 @@ Analysis logs are written as JSON to `data/output/<analysis_name>_log.json`.
 
 Full UI spec, controls, algorithms, and session state per page are in `modal_analysis.md`. Worked signal-processing examples with runnable code are in `analysis_method.ipynb`.
 
-### Wireframe geometry (page 7 — stub)
+### Wireframe geometry (page 8)
 
-The planned wireframe page will parse NASTRAN BDF-format ASCII files containing `GRID` (point geometry in global coordinate system CP 0) and `PLOTEL` (two-point connectivity) cards to drive a 3-D Plotly visualisation of mode shapes.
+Page 8 parses NASTRAN BDF-format ASCII files containing `GRID` (point geometry in global coordinate system CP 0) and `PLOTEL` (two-point connectivity) cards to drive a 3-D Plotly visualisation of mode shapes.

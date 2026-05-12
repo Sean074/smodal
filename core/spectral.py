@@ -81,6 +81,41 @@ def compute_psd(
     return welch(signal, fs=sample_rate, window=window, nperseg=nperseg, noverlap=noverlap)
 
 
+def compute_output_spectral_matrix(
+    signals: np.ndarray,
+    fs: float,
+    nperseg: int,
+    noverlap: int,
+    window: str = "hann",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute the output PSD matrix via Welch-averaged CPSD.
+
+    signals : (n_samples, n_out) array — output-only response channels
+    Returns : (freqs (n_freqs,), Syy (n_freqs, n_out, n_out) complex)
+
+    Diagonal entries are real auto-PSDs; off-diagonal are complex CPSDs.
+    Conjugate symmetry is enforced: Syy[k, i, j] = conj(Syy[k, j, i]).
+    """
+    from scipy.signal import welch, csd as scipy_csd
+
+    n_out = signals.shape[1]
+    kw = dict(fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
+
+    freqs, _ = welch(signals[:, 0], **kw)
+    n_freqs = len(freqs)
+    Syy = np.zeros((n_freqs, n_out, n_out), dtype=complex)
+
+    for i in range(n_out):
+        _, Pii = welch(signals[:, i], **kw)
+        Syy[:, i, i] = Pii
+        for j in range(i + 1, n_out):
+            _, Sij = scipy_csd(signals[:, i], signals[:, j], **kw)
+            Syy[:, i, j] = Sij
+            Syy[:, j, i] = np.conj(Sij)
+
+    return freqs, Syy
+
+
 def compute_welch_quantities(
     x: np.ndarray,
     y: np.ndarray,

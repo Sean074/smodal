@@ -336,6 +336,63 @@ def modal_fit_nmse(H_measured: np.ndarray, H_syn: np.ndarray) -> np.ndarray:
     return 10.0 * np.log10(nmse + 1e-30)
 
 
+def fdd_svd(Syy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """SVD of the output spectral matrix at each frequency line.
+
+    Syy : (n_freqs, n_out, n_out) complex
+    Returns : (sv (n_freqs, n_out), svecs (n_freqs, n_out, n_out))
+        sv    — singular values, first column is the Power CMIF
+        svecs — left singular vectors; svecs[k, :, r] is the mode-shape
+                estimate at frequency k for singular value r
+    """
+    n_freqs, n_out, _ = Syy.shape
+    sv = np.zeros((n_freqs, n_out))
+    svecs = np.zeros((n_freqs, n_out, n_out), dtype=complex)
+    for k in range(n_freqs):
+        U, s, _ = np.linalg.svd(Syy[k])
+        sv[k] = s
+        svecs[k] = U
+    return sv, svecs
+
+
+def fdd_damping(
+    sv1: np.ndarray, freqs: np.ndarray, peak_idx: int
+) -> tuple[float, float, float]:
+    """Half-power bandwidth damping estimate for one FDD peak.
+
+    sv1      : (n_freqs,) first singular values (linear scale, not dB)
+    peak_idx : index of the peak in freqs / sv1
+    Returns  : (xi_pct, f_a, f_b)
+        xi_pct — damping ratio in percent
+        f_a    — lower half-power frequency (Hz)
+        f_b    — upper half-power frequency (Hz)
+    """
+    half_power = sv1[peak_idx] / 2.0
+
+    # Lower half-power frequency
+    f_a = float(freqs[0])
+    for k in range(peak_idx - 1, -1, -1):
+        if sv1[k] <= half_power:
+            # Linear interpolation between k and k+1
+            df = freqs[k + 1] - freqs[k]
+            ds = sv1[k + 1] - sv1[k]
+            f_a = float(freqs[k] + (half_power - sv1[k]) / ds * df) if ds != 0 else float(freqs[k])
+            break
+
+    # Upper half-power frequency
+    f_b = float(freqs[-1])
+    for k in range(peak_idx + 1, len(sv1)):
+        if sv1[k] <= half_power:
+            df = freqs[k] - freqs[k - 1]
+            ds = sv1[k] - sv1[k - 1]
+            f_b = float(freqs[k - 1] + (half_power - sv1[k - 1]) / ds * df) if ds != 0 else float(freqs[k])
+            break
+
+    fn = float(freqs[peak_idx])
+    xi_pct = (f_b - f_a) / (2.0 * fn) * 100.0 if fn > 0 else 0.0
+    return xi_pct, f_a, f_b
+
+
 def compute_mac(phi_ref: np.ndarray, phi_comp: np.ndarray) -> np.ndarray:
     """MAC matrix between two sets of mode shapes.
 
