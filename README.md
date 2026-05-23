@@ -29,6 +29,15 @@ pip install -r requirements.txt
 
 ---
 
+## Running tests
+
+```bash
+source .venv/bin/activate        # if not already active
+pytest tests/ -v
+```
+
+---
+
 ## Running the app
 
 ```bash
