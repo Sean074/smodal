@@ -65,22 +65,25 @@ Upload it on the landing page to explore the full workflow without your own data
 
 | Step | Page | Purpose |
 |---|---|---|
-| 0 | Landing page | Entry point |
+| 0 | Landing page | Analysis metadata |
 | 1 | Time History | Trim time window, apply Butterworth filter |
-| 2 | FFT | Inspect spectra, save FFT for downstream use |
+| 2 | FFT | Inspect spectra |
 | 3 | Spectral Analysis | Auto-power, PSD, FRFs (H1/H2/Hv), coherence |
 | 4 | SIMO EMA | Single-shaker system identification (pLSCF) |
 | 5 | MIMO EMA | Dual-shaker system identification (multi-reference pLSCF) |
-| 6 | MAC | Modal Assurance Criteria plot *(stub)* |
-| 7 | Wireframe | 3-D mode shape visualisation |
-| 8 | Methods | Explanation of the analytical methods used in MODAL_ANALYSIS |
+| 6 | OMA | Output-only modal analysis (FDD) |
+| 7 | MAC | Modal Assurance Criteria |
+| 8 | Wireframe | 3-D mode shape visualisation |
+| 9 | Methods | Analytical method reference |
 
-Pages 1–3 feed into each other in sequence and can be used independently as QC tools. Page 4 (SIMO) and Page 5 (MIMO) reads CSV data directly and computes its own FRFs — Pages 1, 2 and 3 are not required for system identification.
+Pages 1–3 feed into each other in sequence and can be used independently as QC tools. Pages 4 (SIMO), 5 (MIMO), and 6 (OMA) load CSV data directly and compute their own FRFs — Pages 1, 2, and 3 are not required for system identification.
 ---
 
 ## Documentation
 
-| File | Audience | Contents |
-|---|---|---|
-| `modal_analysis.md` | Developers / analysts | Full page-by-page UI spec, controls, algorithms, and session state |
-| `analysis_method.ipynb` | Analysts / students | Signal processing and system ID methods with worked Python examples |
+| File | Contents |
+|---|---|
+| `docs/workflow_pages.md` | Page-by-page UI spec, controls, algorithms, session state |
+| `docs/data_model.md` | Session state key table, core module API reference |
+| `docs/algorithms.md` | Signal processing and system ID theory |
+| `docs/methods.ipynb` | Worked Python examples |

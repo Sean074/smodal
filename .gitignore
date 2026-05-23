@@ -2,7 +2,8 @@ todo.md
 wireframes*md
 CLAUDE.md
 .gitignore
-*scarp*
+*scrap*
+dev/
 .venv/
 .venv
 __init__.py
