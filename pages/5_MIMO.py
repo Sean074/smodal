@@ -857,11 +857,22 @@ with chart_col:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
+            def _nmse_quality(db: float) -> str:
+                if db < -30: return "Excellent"
+                if db < -20: return "Good"
+                if db < -10: return "Acceptable"
+                return "Poor"
+
             with st.expander("Fit quality (NMSE per channel)"):
+                st.caption(
+                    "NMSE = 10 log₁₀(error energy / signal energy). Lower (more negative) is better. "
+                    "−20 dB means the error is 1 % of the measured signal energy. "
+                    "Scale: Excellent < −30 dB · Good −30 to −20 dB · Acceptable −20 to −10 dB · Poor > −10 dB"
+                )
                 nmse_rows = []
                 for o, ch in enumerate(out_chs):
-                    nmse_rows.append({"Channel": ch, "Run": "A", "NMSE (dB)": round(float(nmse[o]), 2)})
-                    nmse_rows.append({"Channel": ch, "Run": "B", "NMSE (dB)": round(float(nmse[n_out_fit + o]), 2)})
+                    nmse_rows.append({"Channel": ch, "Run": "A", "NMSE (dB)": round(float(nmse[o]), 2), "Quality": _nmse_quality(float(nmse[o]))})
+                    nmse_rows.append({"Channel": ch, "Run": "B", "NMSE (dB)": round(float(nmse[n_out_fit + o]), 2), "Quality": _nmse_quality(float(nmse[n_out_fit + o]))})
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
 
     # ── Export ────────────────────────────────────────────────────────────────
