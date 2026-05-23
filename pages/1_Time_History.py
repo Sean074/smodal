@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -128,7 +129,7 @@ if st.button("Save Analysis Log", type="primary"):
             "comment": st.session_state.get("comment", ""),
             "data_summary": summary_rows,
         }
-        safe_name = (st.session_state.get("analysis_name") or "analysis").replace(" ", "_")
+        safe_name = re.sub(r'[^A-Za-z0-9_\-]', '_', (st.session_state.get("analysis_name") or "analysis"))[:64]
         log_path = Path("data/output") / f"{safe_name}_log.json"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text(json.dumps(log, indent=2))

@@ -159,9 +159,9 @@ if st.button("Compute MAC", type="primary"):
 
     # Build experimental mode shape matrix (n_sensors, n_exp_modes)
     if is_mimo_source:
-        phi_exp = np.real(exp_results["mode_shapes"][:, 0, :])
+        phi_exp = exp_results["mode_shapes"][:, 0, :]
     else:
-        phi_exp = np.real(exp_results["mode_shapes"])
+        phi_exp = exp_results["mode_shapes"]
 
     # Build FE mode shape matrix (n_sensors, n_fe_modes)
     phi_fe = np.zeros((n_sensors, n_fe_modes))

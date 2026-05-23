@@ -220,3 +220,25 @@ def test_compute_mac_shape():
     mac = compute_mac(phi_ref, phi_comp)
     assert mac.shape == (3, 4)
     assert np.all((mac >= 0) & (mac <= 1 + 1e-10))
+
+
+def test_compute_mac_complex_phase_scatter():
+    # Mode shapes with DOF-level phase scatter (typical of damped EMA residues)
+    rng = np.random.default_rng(42)
+    phi = rng.standard_normal((6, 2)) + 1j * rng.standard_normal((6, 2))
+
+    # Self-MAC must be 1.0 regardless of complex phase
+    mac_self = compute_mac(phi, phi)
+    np.testing.assert_allclose(np.diag(mac_self), 1.0, atol=1e-10)
+
+    # Global phase rotation must not change MAC
+    phi_rotated = phi * np.exp(1j * np.pi / 3)
+    mac_rotated = compute_mac(phi, phi_rotated)
+    np.testing.assert_allclose(np.diag(mac_rotated), 1.0, atol=1e-10)
+
+    # Stripping imaginary part on a phase-scattered shape drops MAC below 1 —
+    # this confirms that np.real() was incorrect and removal is the right fix
+    mac_real_cast = compute_mac(phi, np.real(phi).astype(complex))
+    assert np.any(np.diag(mac_real_cast) < 0.99), (
+        "np.real() on complex mode shapes should reduce MAC for phase-scattered shapes"
+    )

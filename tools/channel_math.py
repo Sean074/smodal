@@ -17,7 +17,12 @@ Typical usage::
 
 from __future__ import annotations
 
+import re
+
+import numpy as np
 import pandas as pd
+
+_BLOCKED = re.compile(r'__|import|open|exec\b|eval\b|\bos\b|subprocess')
 
 
 def list_channels(df: pd.DataFrame) -> list[str]:
@@ -48,12 +53,20 @@ def add_channel(
     """
     if new_name == "time":
         return df, "Cannot overwrite the 'time' column."
+    if _BLOCKED.search(expression):
+        return df, "Expression contains disallowed tokens."
 
     local_vars = {col: df[col] for col in df.columns}
     try:
-        result = pd.eval(expression, local_dict=local_vars, engine="python")
-    except Exception as e:
-        return df, f"Expression error: {e}"
+        result = pd.eval(expression, local_dict=local_vars, engine="numexpr")
+    except Exception:
+        try:
+            result = pd.eval(expression, local_dict=local_vars, engine="python")
+        except Exception as e:
+            return df, f"Expression error: {e}"
+
+    if not isinstance(result, (pd.Series, np.ndarray)):
+        return df, "Expression must evaluate to a numeric series."
 
     df = df.copy()
     df[new_name] = result

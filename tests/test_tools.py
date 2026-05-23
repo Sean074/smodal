@@ -193,6 +193,50 @@ class TestChannelMath:
         assert err is not None
 
 
+class TestChannelMathSecurity:
+    """Verify that add_channel blocks code-injection expressions."""
+
+    def _df(self):
+        return _make_df()
+
+    def _blocked(self, expression):
+        from tools.channel_math import add_channel
+
+        df = self._df()
+        df_out, err = add_channel(df, "bad", expression)
+        assert err is not None, f"Expected error for expression: {expression!r}"
+        assert df_out is df or df_out.equals(df)
+
+    def test_blocks_dunder_import(self):
+        self._blocked("__import__('os').system('echo hi')")
+
+    def test_blocks_dunder_class(self):
+        self._blocked("__class__")
+
+    def test_blocks_import_keyword(self):
+        self._blocked("import os")
+
+    def test_blocks_exec(self):
+        self._blocked("exec('1')")
+
+    def test_blocks_eval(self):
+        self._blocked("eval('1')")
+
+    def test_blocks_open(self):
+        self._blocked("open('/etc/passwd')")
+
+    def test_blocks_subprocess(self):
+        self._blocked("subprocess.run(['ls'])")
+
+    def test_valid_expression_still_works(self):
+        from tools.channel_math import add_channel
+
+        df = _make_df()
+        df_out, err = add_channel(df, "diff", "ch_a - ch_b")
+        assert err is None
+        assert "diff" in df_out.columns
+
+
 # ---------------------------------------------------------------------------
 # downsample
 # ---------------------------------------------------------------------------
