@@ -111,3 +111,30 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 - `parse_wireframe_bdf(file)` — parses a NASTRAN BDF (free-field or 8-char fixed-field) for `GRID` and `PLOTEL` cards; returns a `GeomModel` dataclass with `.grids` and `.plotels` dicts.
 - `parse_f06(file)` — parses a NASTRAN F06 output file for real eigenvalues and eigenvectors; returns `{"frequencies_hz": [...], "mode_shapes": [{gid: [T1,T2,T3]}, ...]}`.
 - `expand_rbe3_displacements(geom, meas_disps)` — propagates measured grid displacements through RBE3 elements by weighted average; fills zeros for unmeasured grids; returns `{gid: np.ndarray}`.
+
+---
+
+## Tools API
+
+Standalone Python utilities in `tools/`. Run directly in scripts or interactively — not part of the Streamlit app. All functions follow the same `(result, error_string | None)` convention as the core modules. See `tools/README.md` for usage examples.
+
+### `tools/format_converter.py`
+- `from_excel(path, sheet=0, time_col=None, unit_scales=None)` — load an Excel workbook sheet; requires `openpyxl`. Returns `(df, error)`.
+- `from_delimited(path, sep='\t', time_col=None, unit_scales=None)` — load a delimited text file (TSV, semicolon-CSV, etc.). Returns `(df, error)`.
+- `rename_columns(df, mapping)` — rename data columns; `mapping` is `{old: new}`; 'time' cannot be remapped. Returns `(df, error)`.
+- `save_csv(df, out_path)` — write DataFrame to CSV ready for `core/data_loader.load_csv`. Returns `error | None`.
+
+`time_col`: column to rename to `'time'`. Auto-detected from common names (`time`, `Time`, `t`, etc.) if `None`.
+`unit_scales`: `{column: scale_factor}` applied as multiplication before return.
+
+### `tools/channel_math.py`
+- `list_channels(df)` — return all column names except `'time'`.
+- `add_channel(df, new_name, expression)` — evaluate *expression* using existing columns as variables (via `pd.eval`, Python engine); append result as *new_name*. Returns copy `(df, error)`.
+- `remove_channel(df, name)` — drop a column; `'time'` cannot be removed. Returns copy `(df, error)`.
+
+### `tools/downsample.py`
+- `downsample(df, target_fs, method='decimate')` — reduce sample rate to *target_fs* Hz. `method='decimate'` uses `scipy.signal.decimate` (integer factor, Chebyshev AA filter); `method='resample'` uses `scipy.signal.resample` (arbitrary ratio, FFT-based). Returns `(df, error)`.
+
+### `tools/time_sync.py`
+- `trim_to_overlap(dfs)` — trim a list of DataFrames to their shared time window. Returns `(trimmed_dfs, error)`.
+- `sync_and_merge(dfs, tol_s=1e-4)` — trim to overlap then join all DataFrames on nearest timestamps (reference grid = first DataFrame). Duplicate column names from later DataFrames are suffixed `__N`. Returns `(merged_df, error)`.
