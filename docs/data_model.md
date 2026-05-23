@@ -71,8 +71,8 @@ if st.session_state.get("df") is None:
 - `compute_summary(df, input_ch, output_chs)` — returns a list of dicts (one per channel) with samples, sample rate, duration, min/max time, min/max value, RMS.
 
 ### `core/preprocess.py`
-- `build_butter_sos(ftype, order, cutoffs, fs)` — constructs a Butterworth SOS filter; `cutoffs` is a float (Hz) for LP/HP or `[low, high]` for BP/BS.
-- `trim_and_filter(df, t_min, t_max, ftype, order, cutoffs, fs)` — trims a DataFrame to the time window then applies the filter in-place; `ftype='None'` or `cutoffs=None` skips filtering.
+- `build_butter_sos(ftype: str, order: int, cutoffs: Union[float, list[float]], fs: float) -> np.ndarray` — constructs a Butterworth SOS filter; `cutoffs` is a float (Hz) for LP/HP or `[low, high]` for BP/BS.
+- `trim_and_filter(df, t_min, t_max, ftype, order, cutoffs: Union[float, list[float]], fs) -> pd.DataFrame` — trims a DataFrame to the time window then applies the filter in-place; `ftype='None'` or `cutoffs=None` skips filtering.
 
 ### `core/spectral.py`
 - `compute_fft(signal, sample_rate, window)` — applies a scipy window and returns `(freqs_hz, fft_complex)` via `np.fft.rfft`.

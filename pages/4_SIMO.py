@@ -430,6 +430,12 @@ if extract_btn:
     poles = poles_from_estimates(fn_arr, xi_arr)
     sel_out = st.session_state.get("si_sel_outputs", sel_outputs)
 
+    if len(freqs) < 2 * len(poles):
+        st.warning(
+            f"Frequency band has {len(freqs)} lines but {2 * len(poles)} are needed "
+            f"for {len(poles)} modes — residue fit may be ill-conditioned."
+        )
+
     with st.spinner("Extracting residues…"):
         residues = extract_residues(H_mat, freqs, poles)
         H_syn = synthesize_frf(freqs, poles, residues)
@@ -648,6 +654,13 @@ with chart_col:
                 legend=dict(orientation="h", y=-0.04),
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            with st.expander("Fit quality (NMSE per channel)"):
+                nmse_rows = [
+                    {"Channel": ch, "NMSE (dB)": round(float(nmse[o]), 2)}
+                    for o, ch in enumerate(out_chs)
+                ]
+                st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
 
     # ── Export ────────────────────────────────────────────────────────────────
     with tab_export:

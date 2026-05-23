@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import scipy.linalg
 import scipy.signal
@@ -307,6 +309,14 @@ def extract_residues(H: np.ndarray, freqs: np.ndarray, poles: np.ndarray) -> np.
     # Phi[i, k] = 1/(j*omega[i] - s_k) + 1/(j*omega[i] - conj(s_k))
     jw = 1j * omega[:, None]  # (n_freqs, 1)
     Phi = 1.0 / (jw - poles[None, :]) + 1.0 / (jw - poles.conj()[None, :])  # (n_freqs, n_modes)
+
+    if H.shape[0] < 2 * len(poles):
+        warnings.warn(
+            f"extract_residues: n_freqs ({H.shape[0]}) < 2×n_modes ({2 * len(poles)}); "
+            "residue fit may be ill-conditioned.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     # Complex least-squares: residues are complex (encode mode-shape amplitude+phase)
     residues, *_ = np.linalg.lstsq(Phi, H, rcond=None)  # (n_modes, n_out) complex
