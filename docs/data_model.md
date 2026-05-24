@@ -41,7 +41,8 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_file_b_name` | `5_MIMO.py` (load) | `5_MIMO.py` (re-load guard) |
 | `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract, charts) |
-| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_H_mat_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) — band-limited FRF matrix `(n_band, n_out*2)` matching `mimo_freqs_band` |
 | `mimo_cmif` | `5_MIMO.py` (Build) | `5_MIMO.py` (CMIF tab, Stability bg) |
 | `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |

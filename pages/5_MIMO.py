@@ -46,7 +46,7 @@ if file_a is not None and st.session_state.get("mimo_file_a_name") != file_a.nam
         st.session_state["mimo_run_a_df"] = df_a
         st.session_state["mimo_sample_rate"] = float(compute_sample_rate(df_a["time"].values))
         st.session_state["mimo_file_a_name"] = file_a.name
-        for k in ["mimo_H_mat", "mimo_freqs", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
+        for k in ["mimo_H_mat", "mimo_freqs", "mimo_freqs_band", "mimo_H_mat_band", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
             st.session_state.pop(k, None)
 
 if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.name:
@@ -56,7 +56,7 @@ if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.nam
     else:
         st.session_state["mimo_run_b_df"] = df_b
         st.session_state["mimo_file_b_name"] = file_b.name
-        for k in ["mimo_H_mat", "mimo_freqs", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
+        for k in ["mimo_H_mat", "mimo_freqs", "mimo_freqs_band", "mimo_H_mat_band", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
             st.session_state.pop(k, None)
         fs_b = float(compute_sample_rate(df_b["time"].values))
         fs_a = st.session_state.get("mimo_sample_rate")
@@ -495,6 +495,7 @@ if build_btn:
     st.session_state["mimo_H_mat"] = H_stacked
     st.session_state["mimo_freqs"] = freqs_full
     st.session_state["mimo_freqs_band"] = freqs_band
+    st.session_state["mimo_H_mat_band"] = H_band
     st.session_state["mimo_cmif"] = cmif_vals
     st.session_state["mimo_stability_table"] = table
     st.session_state["mimo_sel_outputs"] = sel_outputs
@@ -505,12 +506,14 @@ if build_btn:
 
 # ── Extract Mode Shapes ────────────────────────────────────────────────────────
 if extract_btn:
-    H_mat = st.session_state.get("mimo_H_mat")
-    freqs_ext = st.session_state.get("mimo_freqs")
+    H_mat_band = st.session_state.get("mimo_H_mat_band")
+    freqs_ext = st.session_state.get("mimo_freqs_band")
+    H_mat_full = st.session_state.get("mimo_H_mat")
+    freqs_full = st.session_state.get("mimo_freqs")
     n_out_ext: int = st.session_state.get("mimo_n_out", n_out)
     sel_out_ext: list = st.session_state.get("mimo_sel_outputs", sel_outputs)
 
-    if H_mat is None or freqs_ext is None:
+    if H_mat_band is None or freqs_ext is None or H_mat_full is None or freqs_full is None:
         st.error("Build the stability diagram first.")
         st.stop()
 
@@ -533,7 +536,7 @@ if extract_btn:
         )
 
     with st.spinner("Extracting residues…"):
-        residues = extract_residues(H_mat, freqs_ext, poles)  # (n_out*2, n_modes)
+        residues = extract_residues(H_mat_band, freqs_ext, poles)  # (n_out*2, n_modes)
 
         # Reshape: first n_out_ext rows = Run A, next n_out_ext rows = Run B
         res_A = residues[:n_out_ext, :]   # (n_out, n_modes)
@@ -548,8 +551,9 @@ if extract_btn:
             norm_B = np.linalg.norm(r3d[:, 1, m])
             mode_types.append("S" if norm_A >= norm_B else "A")
 
-        H_syn = synthesize_frf(freqs_ext, poles, residues)  # (n_freqs, n_out*2)
-        nmse = modal_fit_nmse(H_mat, H_syn)                 # (n_out*2,)
+        H_syn_band = synthesize_frf(freqs_ext, poles, residues)      # (n_band, n_out*2) for NMSE
+        H_syn = synthesize_frf(freqs_full, poles, residues)          # (n_freqs, n_out*2) for plotting
+        nmse = modal_fit_nmse(H_mat_band, H_syn_band)                # (n_out*2,)
 
     fn_fit = np.abs(poles.imag) / (2.0 * np.pi)
     xi_fit = -poles.real / (np.abs(poles) + 1e-30)
@@ -562,8 +566,8 @@ if extract_btn:
         "residues_flat": residues,    # (n_out*2, n_modes) for modal contribution plots
         "mode_types": mode_types,
         "output_channels": sel_out_ext,
-        "freqs": freqs_ext,
-        "H_measured": H_mat,
+        "freqs": freqs_full,
+        "H_measured": H_mat_full,
         "H_synthesis": H_syn,
         "nmse": nmse,
     }
