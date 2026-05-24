@@ -18,7 +18,7 @@ A multi-page Streamlit app for structural dynamics modal analysis and experiment
 ```bash
 # 1. Clone the repository
 git clone https://github.com/Sean074/smodal.git
-cd modal_analysis
+cd smodal
 
 # 2. Create and activate a virtual environment
 python -m venv .venv
@@ -96,7 +96,7 @@ Pages 1–3 feed into each other in sequence and can be used independently as QC
 
 Sean O'Meara — <sean.c.omeara74@gmail.com>
 
-Bug reports and pull requests are welcome via the [GitHub issue tracker](https://github.com/Sean074/modal_analysis/issues).
+Bug reports and pull requests are welcome via the [GitHub issue tracker](https://github.com/Sean074/smodal/issues).
 
 ---
 
