@@ -3,11 +3,19 @@ requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "modal_analysis"
+name = "smodal"
 version = "0.1.0"
 description = "Streamlit app for experimental and operational modal analysis (EMA / OMA): SIMO, MIMO, FDD, MAC, 3-D mode shapes."
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "streamlit>=1.50",
+    "pandas>=2.3",
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "plotly>=6.7",
+    "nbformat>=5.9",
+]
 license = {text = "MIT"}
 authors = [
     {name = "Sean O'Meara", email = "sean.c.omeara74@gmail.com"},

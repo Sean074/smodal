@@ -12,7 +12,7 @@ source .venv/bin/activate
 streamlit run app.py
 
 # Install dependencies
-pip install -r requirements.txt
+pip install -e .
 ```
 
 Run tests with `pytest tests/ -v` (requires `source .venv/bin/activate`).
