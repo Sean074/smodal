@@ -77,8 +77,8 @@ else:
     st.session_state["mac_exp_source"] = exp_source
 
 exp_results = (
-    st.session_state["mimo_modal_results"] if "MIMO" in exp_source
-    else st.session_state["modal_results"]
+    st.session_state.get("mimo_modal_results", {}) if "MIMO" in exp_source
+    else st.session_state.get("modal_results", {})
 )
 
 exp_fn = exp_results["fn"]

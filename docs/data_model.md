@@ -58,6 +58,13 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `oma_peak_estimates` | `6_OMA.py` (Build) | `6_OMA.py` (Step 2 init) — list of dicts `{fn_hz, xi_pct, source}` from FDD auto-peak detection; replaced on each Build |
 | `oma_peak_seed_ver` | `6_OMA.py` (Build, file reload) | `6_OMA.py` (data_editor key) — integer version counter; incrementing forces `st.data_editor` to re-initialise from seed data |
 | `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
+| `mac_exp_source` | `7_MAC.py` (radio) | `7_MAC.py` (mode shape selection) |
+| `mac_mapping` | `7_MAC.py` (channel-DOF form) | `7_MAC.py` (Compute MAC) |
+| `mac_matrix` | `7_MAC.py` (Compute MAC) | `7_MAC.py` (heatmap, frequency table) — shape `(n_fe_modes, n_exp_modes)` |
+| `mac_fe_freqs` | `7_MAC.py` (Compute MAC) | `7_MAC.py` (heatmap labels, freq table) |
+| `mac_exp_freqs` | `7_MAC.py` (Compute MAC) | `7_MAC.py` (heatmap labels, freq table) |
+| `mac_f06_data` | `7_MAC.py` (F06 upload) | `7_MAC.py` (Compute MAC) |
+| `_mac_f06_name` | `7_MAC.py` (F06 upload guard) | `7_MAC.py` (re-load guard) |
 
 Pages 2 and 3 guard against missing data with:
 ```python
@@ -134,7 +141,7 @@ Standalone Python utilities in `tools/`. Run directly in scripts or interactivel
 
 ### `tools/channel_math.py`
 - `list_channels(df)` — return all column names except `'time'`.
-- `add_channel(df, new_name, expression)` — evaluate *expression* using existing columns as variables (via `pd.eval`, Python engine); append result as *new_name*. Returns copy `(df, error)`.
+- `add_channel(df, new_name, expression)` — evaluate *expression* using existing columns as variables; blocked tokens checked first, then `pd.eval` with numexpr engine (Python fallback). Append result as *new_name*. Returns copy `(df, error)`.
 - `remove_channel(df, name)` — drop a column; `'time'` cannot be removed. Returns copy `(df, error)`.
 
 ### `tools/downsample.py`
