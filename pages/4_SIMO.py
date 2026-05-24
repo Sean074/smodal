@@ -403,6 +403,7 @@ if build_btn:
     st.session_state["si_cmif"] = cmif_vals
     st.session_state["si_H_mat"] = H_mat
     st.session_state["si_freqs_band"] = f_band
+    st.session_state["si_H_mat_band"] = H_band
     st.session_state["si_sel_outputs"] = sel_outputs
     st.session_state["si_frf_est_used"] = frf_est
     st.session_state.pop("modal_results", None)
@@ -412,7 +413,9 @@ if build_btn:
 if extract_btn:
     H_mat = st.session_state.get("si_H_mat")
     freqs = st.session_state.get("si_freqs")
-    if H_mat is None or freqs is None:
+    H_mat_band = st.session_state.get("si_H_mat_band")
+    freqs_band = st.session_state.get("si_freqs_band")
+    if H_mat is None or freqs is None or H_mat_band is None or freqs_band is None:
         st.error("Build the stability diagram first.")
         st.stop()
 
@@ -430,16 +433,17 @@ if extract_btn:
     poles = poles_from_estimates(fn_arr, xi_arr)
     sel_out = st.session_state.get("si_sel_outputs", sel_outputs)
 
-    if len(freqs) < 2 * len(poles):
+    if len(freqs_band) < 2 * len(poles):
         st.warning(
-            f"Frequency band has {len(freqs)} lines but {2 * len(poles)} are needed "
+            f"Frequency band has {len(freqs_band)} lines but {2 * len(poles)} are needed "
             f"for {len(poles)} modes — residue fit may be ill-conditioned."
         )
 
     with st.spinner("Extracting residues…"):
-        residues = extract_residues(H_mat, freqs, poles)
+        residues = extract_residues(H_mat_band, freqs_band, poles)
         H_syn = synthesize_frf(freqs, poles, residues)
-        nmse = modal_fit_nmse(H_mat, H_syn)
+        H_syn_band = synthesize_frf(freqs_band, poles, residues)
+        nmse = modal_fit_nmse(H_mat_band, H_syn_band)
 
     fn_fit = np.abs(poles.imag) / (2.0 * np.pi)
     xi_fit = -poles.real / (np.abs(poles) + 1e-30)

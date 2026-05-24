@@ -29,7 +29,8 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_stability_table` | `4_SIMO.py` (Build) | `4_SIMO.py` (Step 2, Stability tab) |
 | `si_cmif` | `4_SIMO.py` (Build) | `4_SIMO.py` (Stability tab bg, CMIF tab) — shape `(n_freqs, 2)` |
 | `si_H_mat` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
-| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Build) |
+| `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
+| `si_H_mat_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) — band-limited FRF matrix `(n_band, n_outputs)` matching `si_freqs_band` |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
 | `modal_results` | `4_SIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
@@ -52,6 +53,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `oma_svecs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) — shape `(n_freqs, n_out, n_out)` |
 | `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` — shape `(n_freqs, n_out, n_out)` |
 | `oma_sel_outputs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) |
+| `oma_peak_estimates` | `6_OMA.py` (Build) | `6_OMA.py` (Step 2 init) — list of dicts `{fn_hz, xi_pct, source}` from FDD auto-peak detection; replaced on each Build |
 | `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 
 Pages 2 and 3 guard against missing data with:

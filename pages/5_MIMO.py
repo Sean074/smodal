@@ -61,10 +61,11 @@ if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.nam
         fs_b = float(compute_sample_rate(df_b["time"].values))
         fs_a = st.session_state.get("mimo_sample_rate")
         if fs_a is not None and abs(fs_b - fs_a) / (fs_a + 1e-9) > 0.01:
-            st.warning(
+            st.error(
                 f"Run B sample rate ({fs_b:.1f} Hz) differs from Run A ({fs_a:.1f} Hz) by more than 1 %. "
                 "FRF estimates will be unreliable. Re-upload files with matching sample rates."
             )
+            st.stop()
 
 run_a = st.session_state.get("mimo_run_a_df")
 run_b = st.session_state.get("mimo_run_b_df")
