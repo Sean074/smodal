@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import streamlit as st
 from scipy.signal import get_window
 
 
@@ -92,6 +93,7 @@ def compute_psd(
     return welch(signal, fs=sample_rate, window=window, nperseg=nperseg, noverlap=noverlap)
 
 
+@st.cache_data
 def compute_output_spectral_matrix(
     signals: np.ndarray,
     fs: float,

@@ -153,6 +153,8 @@ st.session_state["mac_mapping"] = mapping
 # ── Section D: Compute MAC ────────────────────────────────────────────────────
 
 st.header("D — Compute MAC")
+if is_mimo_source:
+    st.caption("MAC uses Run A (reference) mode shape amplitudes only.")
 
 if st.button("Compute MAC", type="primary"):
     n_sensors = len(exp_channels)
@@ -185,8 +187,8 @@ if mac_matrix is None:
     st.info("Click Compute MAC above.")
     st.stop()
 
-mac_fe_freqs: np.ndarray = st.session_state["mac_fe_freqs"]
-mac_exp_freqs: np.ndarray = st.session_state["mac_exp_freqs"]
+mac_fe_freqs: np.ndarray = st.session_state.get("mac_fe_freqs", np.array([]))
+mac_exp_freqs: np.ndarray = st.session_state.get("mac_exp_freqs", np.array([]))
 
 exp_labels = [f"Mode {i+1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_exp_freqs)]
 fe_labels  = [f"Mode {i+1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_fe_freqs)]

@@ -6,7 +6,7 @@ import scipy.signal
 
 
 def compute_cmif(H: np.ndarray) -> np.ndarray:
-    """H: (n_freqs, n_outputs) complex → (n_freqs,) first singular value."""
+    """H: (n_freqs, n_outputs) complex → (n_freqs,) L2 row norm of each frequency row (≡ σ₁ for SIMO use)."""
     if H.ndim == 1:
         return np.abs(H)
     return np.linalg.norm(H, axis=1)
