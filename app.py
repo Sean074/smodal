@@ -23,6 +23,10 @@ for key, val in _DEFAULTS.items():
 # Page content
 # ---------------------------------------------------------------------------
 st.title("smodal — Modal Analysis")
+st.caption(
+    "Experimental & operational modal analysis (EMA / OMA) from a multi-channel CSV — "
+    "open source on [GitHub](https://github.com/Sean074/smodal)."
+)
 st.markdown("---")
 
 st.header("Analysis Information")
