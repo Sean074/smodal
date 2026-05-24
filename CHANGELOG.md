@@ -10,11 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- (Work in progress for the next release goes here.)
 
 ### Changed
 
 ### Fixed
+- README installation instructions now use the new repo name (`cd smodal` and the issue-tracker URL point at `Sean074/smodal`). The v1.0.0 tag was cut one commit early and ships with the pre-rename strings; main is correct.
 
 ### Removed
 
