@@ -30,8 +30,9 @@ if uploaded_file is not None and st.session_state.get("oma_file_name") != upload
         st.session_state["oma_sample_rate"] = float(compute_sample_rate(df_raw["time"].values))
         st.session_state["oma_file_name"] = uploaded_file.name
         for k in ["oma_freqs", "oma_sv", "oma_svecs", "oma_Syy", "oma_modal_results",
-                   "oma_peak_estimates", "oma_estimates"]:
+                   "oma_peak_estimates"]:
             st.session_state.pop(k, None)
+        st.session_state["oma_peak_seed_ver"] = st.session_state.get("oma_peak_seed_ver", 0) + 1
 
 oma_df = st.session_state.get("oma_df")
 if oma_df is None:
@@ -283,6 +284,7 @@ with ctrl_col:
         "source": [r["source"] for r in init_rows[:n_modes]],
     })
 
+    seed_ver = st.session_state.get("oma_peak_seed_ver", 0)
     estimates_df = st.data_editor(
         init_df,
         column_config={
@@ -292,7 +294,7 @@ with ctrl_col:
         },
         hide_index=True,
         use_container_width=True,
-        key="oma_estimates",
+        key=f"oma_estimates_v{seed_ver}",
     )
 
     extract_btn = st.button(
@@ -347,7 +349,7 @@ if build_btn:
             _xi = 2.0
         _peak_ests.append({"fn_hz": float(freqs_full[_pidx]), "xi_pct": round(_xi, 3), "source": "CMIF peak"})
     st.session_state["oma_peak_estimates"] = _peak_ests
-    st.session_state.pop("oma_estimates", None)  # force data_editor to reinitialise
+    st.session_state["oma_peak_seed_ver"] = st.session_state.get("oma_peak_seed_ver", 0) + 1
     st.rerun()
 
 # ── Extract Mode Shapes ───────────────────────────────────────────────────────

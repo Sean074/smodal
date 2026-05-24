@@ -50,26 +50,31 @@ def compute_spectral_quantities(Sx: np.ndarray, Sy: np.ndarray) -> dict:
 
     Returns dict with keys:
         Gxx, Gyy             : float64 auto-power spectra
-        Gyx, Gxy             : complex128 cross-power spectra
+        Gxy, Gyx             : complex128 cross-power spectra (Gxy = E[X* Y], Gyx = conj)
         H1, H2, Hv           : complex128 FRF estimators
         gamma2               : float64 ordinary coherence [0, 1]
     """
     eps = np.finfo(float).tiny
     Gxx = np.real(Sx * np.conj(Sx))
     Gyy = np.real(Sy * np.conj(Sy))
-    Gyx = Sy * np.conj(Sx)
-    Gxy = np.conj(Gyx)
+    Gxy = Sy * np.conj(Sx)    # E[X* Y] = G_xy by standard convention
+    Gyx = np.conj(Gxy)
 
     Gxx_safe = np.maximum(Gxx, eps)
-    Gxy_safe = np.where(np.abs(Gxy) > eps, Gxy, eps + 0j)
+    Gyx_safe = np.where(np.abs(Gyx) > eps, Gyx, eps + 0j)
 
-    H1 = Gyx / Gxx_safe
-    H2 = Gyy / Gxy_safe
+    H1 = Gxy / Gxx_safe
 
-    Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
-    Hv = Hv_mag * np.exp(1j * np.angle(H1))
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        H2 = Gyy / Gyx_safe
+        Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
+        Hv = Hv_mag * np.exp(1j * np.angle(H1))
+        gamma2 = np.abs(Gxy) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
 
-    gamma2 = np.abs(Gyx) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
+    H2     = np.where(np.isfinite(H2),     H2,     0.0 + 0j)
+    Hv_mag = np.where(np.isfinite(Hv_mag), Hv_mag, 0.0)
+    Hv     = np.where(np.isfinite(Hv),     Hv,     0.0 + 0j)
+    gamma2 = np.where(np.isfinite(gamma2), gamma2, 0.0)
 
     return dict(Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy,
                 H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
@@ -135,7 +140,7 @@ def compute_welch_quantities(
     Returns dict with keys:
         freqs                : float64 frequency array (Hz)
         Gxx, Gyy             : float64 auto-power spectral densities
-        Gyx, Gxy             : complex128 cross-power spectral densities
+        Gxy, Gyx             : complex128 cross-power spectral densities (Gxy = E[X* Y], Gyx = conj)
         H1, H2, Hv           : complex128 FRF estimators
         gamma2               : float64 ordinary coherence [0, 1]
     """
@@ -146,18 +151,24 @@ def compute_welch_quantities(
 
     freqs, Gxx = welch(x, **kw)
     _, Gyy = welch(y, **kw)
-    _, Gyx = csd(x, y, **kw)   # Sx* · Sy = H · Gxx  (scipy: csd(a,b) = E[a* · b])
-    Gxy = np.conj(Gyx)
+    _, Gxy = csd(x, y, **kw)   # scipy csd(x,y) = E[X* Y] = G_xy by standard convention
+    Gyx = np.conj(Gxy)
 
     Gxx_safe = np.maximum(Gxx, eps)
-    Gxy_safe = np.where(np.abs(Gxy) > eps, Gxy, eps + 0j)
+    Gyx_safe = np.where(np.abs(Gyx) > eps, Gyx, eps + 0j)
 
-    H1 = Gyx / Gxx_safe
-    H2 = Gyy / Gxy_safe
-    Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
-    Hv = Hv_mag * np.exp(1j * np.angle(H1))
+    H1 = Gxy / Gxx_safe
 
-    gamma2 = np.abs(Gyx) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
+    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+        H2 = Gyy / Gyx_safe
+        Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
+        Hv = Hv_mag * np.exp(1j * np.angle(H1))
+        gamma2 = np.abs(Gxy) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
+
+    H2     = np.where(np.isfinite(H2),     H2,     0.0 + 0j)
+    Hv_mag = np.where(np.isfinite(Hv_mag), Hv_mag, 0.0)
+    Hv     = np.where(np.isfinite(Hv),     Hv,     0.0 + 0j)
+    gamma2 = np.where(np.isfinite(gamma2), gamma2, 0.0)
 
     return dict(freqs=freqs, Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy,
                 H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)

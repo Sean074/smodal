@@ -37,6 +37,8 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_sample_rate` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
+| `mimo_file_a_name` | `5_MIMO.py` (load) | `5_MIMO.py` (re-load guard) |
+| `mimo_file_b_name` | `5_MIMO.py` (load) | `5_MIMO.py` (re-load guard) |
 | `mimo_H_mat` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract, charts) |
 | `mimo_freqs_band` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
@@ -54,6 +56,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` — shape `(n_freqs, n_out, n_out)` |
 | `oma_sel_outputs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) |
 | `oma_peak_estimates` | `6_OMA.py` (Build) | `6_OMA.py` (Step 2 init) — list of dicts `{fn_hz, xi_pct, source}` from FDD auto-peak detection; replaced on each Build |
+| `oma_peak_seed_ver` | `6_OMA.py` (Build, file reload) | `6_OMA.py` (data_editor key) — integer version counter; incrementing forces `st.data_editor` to re-initialise from seed data |
 | `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 
 Pages 2 and 3 guard against missing data with:

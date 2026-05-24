@@ -83,6 +83,7 @@ with col_a:
         "Input channel (force / excitation)",
         channels,
         index=channels.index(current_input) if current_input in channels else 0,
+        key="th_input_channel",
     )
     st.session_state["input_channel"] = input_ch
 
@@ -94,6 +95,7 @@ with col_b:
         "Output channels (accelerometers / responses)",
         available_outputs,
         default=default_outputs,
+        key="th_output_channels",
     )
     st.session_state["output_channels"] = output_chs
 

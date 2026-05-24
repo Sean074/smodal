@@ -42,10 +42,8 @@ def test_compute_spectral_quantities_zero_input(sine_signal):
     _, fft_c = compute_fft(sine_signal, fs)
     zeros = np.zeros_like(fft_c)
     res = compute_spectral_quantities(zeros, fft_c)
-    # H1 divides by Gxx_safe (clamped to eps), so it stays finite when Sx=0.
-    # gamma2 and H2 are not guaranteed finite when power is zero at a bin
-    # (eps*eps underflows), so we only assert the guarded quantity.
-    assert np.all(np.isfinite(res["H1"]))
+    for key in ("H1", "H2", "Hv", "gamma2"):
+        assert np.all(np.isfinite(res[key])), f"{key} contains non-finite values for zero input"
 
 
 def test_compute_fft_amplitude_correction():
