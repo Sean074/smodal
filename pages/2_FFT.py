@@ -161,6 +161,7 @@ if compute_btn:
             "ffts": _ffts,
             "window": window,
             "channels": selected_channels,
+            "n_samples": len(df[selected_channels[0]]),
         }
     else:
         _psds: dict[str, np.ndarray] = {}

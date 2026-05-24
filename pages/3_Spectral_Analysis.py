@@ -265,7 +265,7 @@ with chart_col:
         is_welch = result_method == "Welch"
 
         # Δf and normalisation factor
-        N = 2 * (len(freqs) - 1)
+        N = fft_res.get("n_samples", 2 * (len(freqs) - 1))
         if is_welch:
             nperseg_val = res["params"].get("nperseg", N)
             delta_f = sample_rate / nperseg_val
@@ -333,7 +333,7 @@ with chart_col:
         n_rows = 2 * n_out
         titles = []
         for ch in plot_chs:
-            titles += [f"|Gyx| — {ch} (dB)", f"∠Gyx — {ch} (°)"]
+            titles += [f"|Gxy| — {ch} (dB)", f"∠Gxy — {ch} (°)"]
 
         fig = make_subplots(
             rows=n_rows, cols=1,
@@ -343,26 +343,26 @@ with chart_col:
         )
 
         for i, ch in enumerate(plot_chs, start=1):
-            Gyx = ch_data[ch]["Gyx"][mask]
+            Gxy = ch_data[ch]["Gxy"][mask]  # Gxy = Sy*conj(Sx); phase = ∠H
             color = _color(i)
             row_mag = 2 * i - 1
             row_ph = 2 * i
 
-            Gyx_dB = 10 * np.log10(np.maximum(np.abs(Gyx), eps))
-            Gyx_ph = np.degrees(np.angle(Gyx))
+            Gxy_dB = 10 * np.log10(np.maximum(np.abs(Gxy), eps))
+            Gxy_ph = np.degrees(np.angle(Gxy))
 
             fig.add_trace(
-                go.Scatter(x=f_plot, y=Gyx_dB, mode="lines",
+                go.Scatter(x=f_plot, y=Gxy_dB, mode="lines",
                            name=ch, line=dict(color=color, width=1.5)),
                 row=row_mag, col=1,
             )
             fig.add_trace(
-                go.Scatter(x=f_plot, y=Gyx_ph, mode="lines",
+                go.Scatter(x=f_plot, y=Gxy_ph, mode="lines",
                            name=ch, line=dict(color=color, width=1.5),
                            showlegend=False),
                 row=row_ph, col=1,
             )
-            fig.update_yaxes(title_text="|Gyx| (dB)", row=row_mag, col=1)
+            fig.update_yaxes(title_text="|Gxy| (dB)", row=row_mag, col=1)
             fig.update_yaxes(title_text="Phase (°)", row=row_ph, col=1)
 
         fig.update_xaxes(title_text="Frequency (Hz)", row=n_rows, col=1)

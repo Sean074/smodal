@@ -227,6 +227,7 @@ def build_stability_table(
     orders = range(2, max_order + 1, 2)
     results = []
     prev = None
+    _residue_warn_count = 0
 
     for n in orders:
         try:
@@ -237,8 +238,13 @@ def build_stability_table(
                 # Lightweight residue extraction for MAC computation
                 if len(poles) > 0:
                     try:
-                        res = extract_residues(H, freqs, poles)
+                        with warnings.catch_warnings(record=True) as _w:
+                            warnings.simplefilter("always")
+                            res = extract_residues(H, freqs, poles)
                         mshapes = res.T  # (n_poles, n_out) → transpose for MAC use
+                        _residue_warn_count += sum(
+                            1 for _ww in _w if issubclass(_ww.category, RuntimeWarning)
+                        )
                     except Exception:
                         mshapes = np.ones((len(poles), H.shape[1]), dtype=complex)
                 else:
@@ -293,6 +299,13 @@ def build_stability_table(
         })
         prev = results[-1]
 
+    if _residue_warn_count > 0:
+        warnings.warn(
+            f"build_stability_table: residue fit was ill-conditioned at one or more model orders "
+            f"({_residue_warn_count} occurrences). Widen the frequency band or reduce max model order.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return results
 
 
@@ -391,12 +404,16 @@ def fdd_damping(
 
     # Upper half-power frequency
     f_b = float(freqs[-1])
+    found_upper = False
     for k in range(peak_idx + 1, len(sv1)):
         if sv1[k] <= half_power:
             df = freqs[k] - freqs[k - 1]
             ds = sv1[k] - sv1[k - 1]
             f_b = float(freqs[k - 1] + (half_power - sv1[k - 1]) / ds * df) if ds != 0 else float(freqs[k])
+            found_upper = True
             break
+    if not found_upper:
+        return 0.0, float(freqs[0]), float(freqs[-1])
 
     fn = float(freqs[peak_idx])
     xi_pct = (f_b - f_a) / (2.0 * fn) * 100.0 if fn > 0 else 0.0

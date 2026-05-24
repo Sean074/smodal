@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -481,15 +482,23 @@ if build_btn:
 
         cmif_vals = compute_mimo_cmif(H_stacked, n_out)  # (n_freqs, 2) — full range
 
-        table = build_stability_table(
-            H_band,
-            freqs_band,
-            fs,
-            max_order=max_order,
-            method="plscf",
-            df_thr=df_thr,
-            dd_thr=dd_thr,
-            mac_thr=mac_thr,
+        with warnings.catch_warnings(record=True) as _stab_warns:
+            warnings.simplefilter("always")
+            table = build_stability_table(
+                H_band,
+                freqs_band,
+                fs,
+                max_order=max_order,
+                method="plscf",
+                df_thr=df_thr,
+                dd_thr=dd_thr,
+                mac_thr=mac_thr,
+            )
+
+    if any(issubclass(w.category, RuntimeWarning) for w in _stab_warns):
+        st.warning(
+            "Residue fit was ill-conditioned at one or more model orders. "
+            "Consider widening the frequency band or reducing max model order."
         )
 
     st.session_state["mimo_H_mat"] = H_stacked

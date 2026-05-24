@@ -196,6 +196,34 @@ def test_fdd_damping_known_bandwidth():
     assert abs(xi_pct / 100.0 - xi_expected) / xi_expected < 0.20
 
 
+def test_fdd_damping_peak_at_last_index_returns_sentinel():
+    freqs = np.linspace(1.0, 50.0, 200)
+    sv1 = np.zeros(200)
+    sv1[-1] = 1.0  # peak at last index — no upper crossing possible
+    xi_pct, _, _ = fdd_damping(sv1, freqs, 199)
+    assert xi_pct == 0.0
+
+
+def test_build_stability_warns_underdetermined():
+    """RuntimeWarning from ill-conditioned residue fit propagates out of build_stability_table."""
+    import warnings as _w
+    from unittest.mock import patch
+
+    freqs = np.linspace(1.0, 100.0, 20)
+    H = np.ones((20, 1), dtype=complex)
+
+    # 15 fake poles → n_freqs=20 < 2*15=30 → extract_residues warns
+    fake_poles = np.array([
+        -0.02 * 2 * np.pi * fn + 1j * 2 * np.pi * fn
+        for fn in np.linspace(5.0, 90.0, 15)
+    ])
+    with patch("core.sysid.plscf_poles", return_value=fake_poles):
+        with _w.catch_warnings(record=True) as caught:
+            _w.simplefilter("always")
+            build_stability_table(H, freqs, 200.0, max_order=30)
+    assert any(issubclass(x.category, RuntimeWarning) for x in caught)
+
+
 # ---------------------------------------------------------------------------
 # compute_mac
 # ---------------------------------------------------------------------------

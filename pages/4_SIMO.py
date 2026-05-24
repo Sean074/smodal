@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -387,16 +388,24 @@ if build_btn:
     f_band = freqs[mask]
 
     with st.spinner("Building stability diagram…"):
-        table = build_stability_table(
-            H_band, f_band, fs,
-            max_order=max_order,
-            method="plscf",
-            df_thr=df_thr,
-            dd_thr=dd_thr,
-            mac_thr=mac_thr,
-        )
+        with warnings.catch_warnings(record=True) as _stab_warns:
+            warnings.simplefilter("always")
+            table = build_stability_table(
+                H_band, f_band, fs,
+                max_order=max_order,
+                method="plscf",
+                df_thr=df_thr,
+                dd_thr=dd_thr,
+                mac_thr=mac_thr,
+            )
         sigma1 = np.linalg.norm(H_mat, axis=1)
         cmif_vals = np.column_stack([sigma1, np.zeros_like(sigma1)])
+
+    if any(issubclass(w.category, RuntimeWarning) for w in _stab_warns):
+        st.warning(
+            "Residue fit was ill-conditioned at one or more model orders. "
+            "Consider widening the frequency band or reducing max model order."
+        )
 
     st.session_state["si_freqs"] = freqs
     st.session_state["si_stability_table"] = table

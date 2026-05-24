@@ -20,7 +20,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `th_file_names` | `1_Time_History.py` (load) | `1_Time_History.py` (re-load guard) |
 | `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
-| `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` |
+| `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` — includes `n_samples` (original signal length) used by Single FFT PSD normalisation |
 | `spectral_results` | `3_Spectral_Analysis.py` | `3_Spectral_Analysis.py` (cached) |
 | `simo_df` | `4_SIMO.py` (load) | `4_SIMO.py` (Build, preview) |
 | `simo_sample_rate` | `4_SIMO.py` (load) | `4_SIMO.py` (`fs`) |
@@ -109,7 +109,7 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 - `synthesize_frf(freqs, poles, residues)` — partial-fraction sum; returns `(n_freqs, n_outputs)` complex.
 - `modal_fit_nmse(H_measured, H_syn)` — NMSE per output channel in dB (lower = better).
 - `fdd_svd(Syy)` — SVD of the output spectral matrix at every frequency; `Syy` is `(n_freqs, n_out, n_out)`; returns `(sv, svecs)` where `sv[:,0]` is the Power CMIF.
-- `fdd_damping(sv1, freqs, peak_idx)` — half-power bandwidth damping estimate; returns `(xi_pct, f_a, f_b)`.
+- `fdd_damping(sv1, freqs, peak_idx)` — half-power bandwidth damping estimate; returns `(xi_pct, f_a, f_b)`. Returns `(0.0, freqs[0], freqs[-1])` sentinel when no upper half-power crossing is found (peak at or near last frequency index); callers should clamp 0.0 to a minimum damping value.
 - `compute_mac(phi_ref, phi_comp)` — MAC matrix `(n_ref, n_comp)` between two sets of mode shapes.
 
 ### `core/mimo.py`
