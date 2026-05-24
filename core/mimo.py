@@ -40,6 +40,9 @@ def compute_mimo_frfs(
     Returns (H_stacked, freqs_full) where H_stacked is (n_freqs, n_out * 2).
     Columns are ordered [H_A_out0, …, H_A_outN, H_B_out0, …, H_B_outN].
     """
+    if not sel_outputs:
+        raise ValueError("sel_outputs must not be empty")
+
     H_A_cols: list[np.ndarray] = []
     H_B_cols: list[np.ndarray] = []
 

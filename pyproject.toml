@@ -33,6 +33,25 @@ classifiers = [
 where = ["."]
 include = ["core*"]
 
+[tool.ruff]
+line-length = 120
+extend-exclude = [".venv", "data", "docs/methods.ipynb"]
+
+[tool.ruff.lint]
+# E   pycodestyle errors
+# F   pyflakes
+# W   pycodestyle warnings
+# I   isort (import sorting)
+# UP  pyupgrade (modernise syntax for the target Python)
+select = ["E", "F", "W", "I", "UP"]
+ignore = [
+    "E501",  # long lines — matplotlib/plotly trace definitions get unavoidably wide
+    "E741",  # short names (I, A, L, w, ...) are standard in signal-processing / FEA notation
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
