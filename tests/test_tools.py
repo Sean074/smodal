@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pathlib
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -97,8 +98,8 @@ class TestFormatConverter:
         assert err is not None
 
     def test_save_csv_roundtrip(self, tmp_path):
-        from tools.format_converter import save_csv
         from core.data_loader import load_csv
+        from tools.format_converter import save_csv
 
         df = _make_df()
         out = tmp_path / "out.csv"

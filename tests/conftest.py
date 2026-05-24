@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import numpy as np
 import pathlib
+
+import numpy as np
 import pytest
 
 ROOT = pathlib.Path(__file__).parent.parent

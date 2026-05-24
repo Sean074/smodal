@@ -19,9 +19,11 @@ Typical usage::
 from __future__ import annotations
 
 import sys
+
 import numpy as np
 import pandas as pd
-from scipy.signal import decimate as sp_decimate, resample as sp_resample
+from scipy.signal import decimate as sp_decimate
+from scipy.signal import resample as sp_resample
 
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).parent.parent))
 from core.data_loader import compute_sample_rate

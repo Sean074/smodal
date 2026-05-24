@@ -1,18 +1,19 @@
 import numpy as np
 import plotly.graph_objects as go
+import streamlit as st
 from plotly.subplots import make_subplots
 from scipy.signal import get_window
-import streamlit as st
 
 from core.spectral import (
+    WINDOW_SCIPY_NAMES,
     compute_spectral_quantities,
     compute_welch_quantities,
-    WINDOW_SCIPY_NAMES,
 )
 
 st.set_page_config(page_title="smodal · Spectral Analysis", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("Spectral Analysis")

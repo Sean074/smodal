@@ -10,12 +10,13 @@ import streamlit as st
 from plotly.subplots import make_subplots
 from scipy.signal import sosfiltfilt, sosfreqz
 
-from core.data_loader import load_csv, compute_summary
+from core.data_loader import compute_summary, load_csv
 from core.preprocess import build_butter_sos
 
 st.set_page_config(page_title="smodal · Time History", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("Time History")

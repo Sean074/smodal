@@ -53,6 +53,7 @@ extend-exclude = [".venv", "data", "docs/methods.ipynb"]
 # UP  pyupgrade (modernise syntax for the target Python)
 select = ["E", "F", "W", "I", "UP"]
 ignore = [
+    "E402",  # import not at top — pages must call st.set_page_config() before other imports
     "E501",  # long lines — matplotlib/plotly trace definitions get unavoidably wide
     "E741",  # short names (I, A, L, w, ...) are standard in signal-processing / FEA notation
 ]

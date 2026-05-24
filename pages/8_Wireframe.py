@@ -16,6 +16,7 @@ from core.geometry import (
 st.set_page_config(page_title="smodal · Wireframe", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("Wireframe Mode Shape")

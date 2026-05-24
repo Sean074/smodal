@@ -4,7 +4,7 @@ import io
 
 import numpy as np
 
-from core.data_loader import load_csv, compute_sample_rate, compute_summary
+from core.data_loader import compute_sample_rate, compute_summary, load_csv
 
 
 def test_load_csv_returns_dataframe(sample_df):

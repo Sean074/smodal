@@ -14,11 +14,10 @@ import math
 import re
 import warnings
 from dataclasses import dataclass, field
-from typing import IO, Union
+from typing import IO
 
 import numpy as np
 import plotly.graph_objects as go
-
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -150,7 +149,7 @@ def _handle_rbe3(fields: list, conts: list, rbe3s: dict) -> None:
 # Public parse entry point
 # ---------------------------------------------------------------------------
 
-def parse_wireframe_bdf(file_like: Union[IO, str]) -> GeomModel:
+def parse_wireframe_bdf(file_like: IO | str) -> GeomModel:
     """Parse a NASTRAN BDF file and return a GeomModel with GRID, PLOTEL, and RBE3 data.
 
     Accepts a file-like object (e.g. from st.file_uploader) or a filepath string.
@@ -158,7 +157,7 @@ def parse_wireframe_bdf(file_like: Union[IO, str]) -> GeomModel:
     All non-wireframe cards (CBAR, MAT1, SPC, etc.) are silently skipped.
     """
     if isinstance(file_like, str):
-        with open(file_like, "r") as fh:
+        with open(file_like) as fh:
             raw_lines = fh.readlines()
     else:
         content = file_like.read()
@@ -256,7 +255,7 @@ _RE_EIGENVEC_ROW_ID = re.compile(r"^\s+(\d+)\s+G\s+", re.IGNORECASE)
 _RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]\d+", re.IGNORECASE)
 
 
-def parse_f06(file_like: Union[IO, str]) -> dict:
+def parse_f06(file_like: IO | str) -> dict:
     """Parse a NASTRAN SOL 103 F06 file and return frequencies and mode shapes.
 
     Parameters
@@ -271,7 +270,7 @@ def parse_f06(file_like: Union[IO, str]) -> dict:
                            each dict maps gid (int) -> np.ndarray([T1, T2, T3])
     """
     if isinstance(file_like, str):
-        with open(file_like, "r") as fh:
+        with open(file_like) as fh:
             lines = fh.readlines()
     else:
         content = file_like.read()

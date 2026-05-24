@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
+from plotly.subplots import make_subplots
 
-from core.data_loader import load_csv, compute_sample_rate
+from core.data_loader import compute_sample_rate, load_csv
 from core.preprocess import trim_and_filter
 from core.spectral import compute_output_spectral_matrix
 from core.sysid import cmif_peak_estimates, fdd_damping, fdd_svd
@@ -12,6 +12,7 @@ from core.sysid import cmif_peak_estimates, fdd_damping, fdd_svd
 st.set_page_config(page_title="smodal · OMA", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("OMA — Operational Modal Analysis")

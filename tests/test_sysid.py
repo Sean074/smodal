@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from core.sysid import (
     build_stability_table,
@@ -13,11 +12,9 @@ from core.sysid import (
     fdd_damping,
     fdd_svd,
     modal_fit_nmse,
-    plscf_poles,
     poles_from_estimates,
     synthesize_frf,
 )
-
 
 # ---------------------------------------------------------------------------
 # compute_cmif

@@ -18,6 +18,7 @@ Typical usage::
 from __future__ import annotations
 
 import pathlib
+
 import pandas as pd
 
 _TIME_CANDIDATES = ["time", "Time", "TIME", "t", "T"]

@@ -14,7 +14,6 @@ from core.geometry import (
     parse_wireframe_bdf,
 )
 
-
 # ---------------------------------------------------------------------------
 # Minimal BDF fixtures (free-field and fixed-field)
 # ---------------------------------------------------------------------------

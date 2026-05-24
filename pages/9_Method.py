@@ -1,11 +1,13 @@
 import base64
-import streamlit as st
-import nbformat
 from pathlib import Path
+
+import nbformat
+import streamlit as st
 
 st.set_page_config(page_title="smodal · Method", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("Analysis Methods")

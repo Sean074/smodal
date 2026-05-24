@@ -4,7 +4,6 @@ import numpy as np
 import streamlit as st
 from scipy.signal import get_window
 
-
 WINDOW_SCIPY_NAMES = _WINDOW_SCIPY_NAMES = {
     "uniform": "boxcar",
     "hanning": "hann",
@@ -109,7 +108,8 @@ def compute_output_spectral_matrix(
     Diagonal entries are real auto-PSDs; off-diagonal are complex CPSDs.
     Conjugate symmetry is enforced: Syy[k, i, j] = conj(Syy[k, j, i]).
     """
-    from scipy.signal import welch, csd as scipy_csd
+    from scipy.signal import csd as scipy_csd
+    from scipy.signal import welch
 
     n_out = signals.shape[1]
     kw = dict(fs=fs, window=window, nperseg=nperseg, noverlap=noverlap)
@@ -147,7 +147,7 @@ def compute_welch_quantities(
         H1, H2, Hv           : complex128 FRF estimators
         gamma2               : float64 ordinary coherence [0, 1]
     """
-    from scipy.signal import welch, csd
+    from scipy.signal import csd, welch
 
     eps = np.finfo(float).tiny
     kw = dict(fs=sample_rate, window=window, nperseg=nperseg, noverlap=noverlap)

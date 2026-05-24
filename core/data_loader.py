@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 
 # Expected time column names, checked in order
 _TIME_COLUMN_CANDIDATES = ["time", "Time", "TIME", "t", "T"]

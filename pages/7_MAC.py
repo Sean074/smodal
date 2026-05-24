@@ -9,6 +9,7 @@ from core.sysid import compute_mac
 st.set_page_config(page_title="smodal · MAC", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("Modal Assurance Criteria (MAC)")

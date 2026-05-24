@@ -1,11 +1,12 @@
 import warnings
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
+from plotly.subplots import make_subplots
 
-from core.data_loader import load_csv, compute_sample_rate
+from core.data_loader import compute_sample_rate, load_csv
 from core.mimo import compute_mimo_cmif, compute_mimo_frfs
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
@@ -22,6 +23,7 @@ from core.sysid import (
 st.set_page_config(page_title="smodal · MIMO", layout="wide")
 
 from core import brand
+
 brand.page_header()
 
 st.title("MIMO — Multi-Reference System Identification (EMA)")
@@ -876,9 +878,12 @@ with chart_col:
                 st.plotly_chart(fig, use_container_width=True)
 
             def _nmse_quality(db: float) -> str:
-                if db < -30: return "Excellent"
-                if db < -20: return "Good"
-                if db < -10: return "Acceptable"
+                if db < -30:
+                    return "Excellent"
+                if db < -20:
+                    return "Good"
+                if db < -10:
+                    return "Acceptable"
                 return "Poor"
 
             with st.expander("Fit quality (NMSE per channel)"):

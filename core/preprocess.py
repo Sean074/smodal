@@ -3,8 +3,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from scipy.signal import butter, sosfiltfilt
-from typing import Union
-
 
 _BTYPE = {
     "Lowpass": "low",
@@ -14,7 +12,7 @@ _BTYPE = {
 }
 
 
-def build_butter_sos(ftype: str, order: int, cutoffs: Union[float, list[float]], fs: float) -> np.ndarray:
+def build_butter_sos(ftype: str, order: int, cutoffs: float | list[float], fs: float) -> np.ndarray:
     """Return a Butterworth SOS filter array.
 
     ftype: 'Lowpass', 'Highpass', 'Bandpass', or 'Bandstop'
@@ -30,7 +28,7 @@ def trim_and_filter(
     t_max: float,
     ftype: str,
     order: int,
-    cutoffs: Union[float, list[float]],
+    cutoffs: float | list[float],
     fs: float,
 ) -> pd.DataFrame:
     """Trim a DataFrame to [t_min, t_max] then optionally apply a Butterworth filter.

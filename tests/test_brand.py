@@ -8,8 +8,6 @@ refactors or the modal_analysis -> smodal rename.
 
 from __future__ import annotations
 
-import pytest
-
 
 def test_constants_exposed():
     """APP_NAME and TAGLINE are importable and non-empty."""

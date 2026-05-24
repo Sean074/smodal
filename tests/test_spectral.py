@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import numpy as np
-
 from scipy.signal import get_window
 
 from core.spectral import (
+    WINDOW_SCIPY_NAMES,
     compute_fft,
+    compute_output_spectral_matrix,
     compute_spectral_quantities,
     compute_welch_quantities,
-    compute_output_spectral_matrix,
-    WINDOW_SCIPY_NAMES,
 )
 
 
