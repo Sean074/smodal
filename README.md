@@ -4,7 +4,7 @@ A multi-page Streamlit app for structural dynamics modal analysis and experiment
 
 **License:** MIT (see [LICENSE](LICENSE)) — free to use, modify, and redistribute, including commercially.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://smodal.streamlit.app)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://smodal-seanomeara.streamlit.app/)
 
 ---
 
