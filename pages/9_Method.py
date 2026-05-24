@@ -6,7 +6,7 @@ from pathlib import Path
 st.set_page_config(page_title="Method", layout="wide")
 st.title("Analysis Methods")
 
-nb_path = Path("analysis_method.ipynb")
+nb_path = Path("docs/methods.ipynb")
 if not nb_path.exists():
     st.error(f"Notebook not found: {nb_path}")
     st.stop()

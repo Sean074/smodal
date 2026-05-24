@@ -5,7 +5,7 @@
 Create page `6_OMA.py` for Operational Modal Analysis (OMA) using only output
 response data (accelerations). The force column in the CSV is ignored.
 Renumber the existing downstream pages: 7_MAC, 8_Wireframe, 9_Method.
-Update `analysis_method.ipynb` with the OMA method.
+Update `docs/methods.ipynb` with the OMA method.
 
 ---
 
@@ -226,7 +226,7 @@ Reconstruct S_yy from identified poles and singular vectors; overlay on measured
 | `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` (synthesis) |
 | `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 
-### Phase 5 — `analysis_method.ipynb` update
+### Phase 5 — `docs/methods.ipynb` update
 
 Add a new section "OMA — Frequency Domain Decomposition" covering:
 - Derivation: why S_yy peaks at natural frequencies under white-noise assumption
