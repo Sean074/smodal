@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-**All 16 issues from Pass 1 are resolved.** The test suite grew from 82 to 93 tests and now passes clean under `-W error::RuntimeWarning` (the three RuntimeWarning sources from Pass 1 are gone). No CRITICAL or MAJOR issues remain. Two new MINOR items are identified: a stale phrase in the `docs/data_model.md` tools API description, and missing documentation entries for the page-7-internal session-state keys. One NIT from Pass 1 is unchanged (N6 — partial caching). The codebase is ready for beta release pending the two new MINOR items.
+**All 16 issues from Pass 1 are resolved.** The test suite grew from 82 to 93 tests and now passes clean under `-W error::RuntimeWarning` (the three RuntimeWarning sources from Pass 1 are gone). No CRITICAL, MAJOR, or MINOR issues remain. The codebase is ready for beta release.
 
 ---
 
@@ -56,7 +56,7 @@
 | N3 | Widget key pop as state reset in OMA page | **FIXED** — version-counter pattern: `key=f"oma_estimates_v{seed_ver}"` at `pages/6_OMA.py:297`; `oma_peak_seed_ver` incremented on Build |
 | N4 | Channel-assignment widgets missing explicit `key=` | **FIXED** — `key="th_input_channel"` and `key="th_output_channels"` at `pages/1_Time_History.py:87, 95` |
 | N5 | `mimo_file_a_name`, `mimo_file_b_name` undocumented | **FIXED** — both keys in `docs/data_model.md:40-41` |
-| N6 | No `@st.cache_data` on expensive computations | **PARTIALLY FIXED** — `@st.cache_data` added to `compute_output_spectral_matrix` (`core/spectral.py:96`); Welch+pLSCF stability sweep is button-gated (acceptable for beta) |
+| N6 | No `@st.cache_data` on expensive computations | **FIXED** — `@st.cache_data` added to both `compute_output_spectral_matrix` (`core/spectral.py:96`) and `compute_welch_quantities` (`core/spectral.py:133`) |
 
 ### NIT Issues (all resolved)
 
@@ -196,7 +196,7 @@ Remaining coverage gaps:
 | N3 | ~~MINOR~~ FIXED | `pages/6_OMA.py` | 350 | Version-counter key (`oma_estimates_v{n}`) replaces key-pop pattern | FIXED |
 | N4 | ~~MINOR~~ FIXED | `pages/1_Time_History.py` | 81–97 | Stable `key=` args on channel-assignment widgets | FIXED |
 | N5 | ~~MINOR~~ FIXED | `docs/data_model.md` | — | `mimo_file_a_name`, `mimo_file_b_name` documented | FIXED |
-| N6 | MINOR (partial) | `core/spectral.py` | 96 | `@st.cache_data` on `compute_output_spectral_matrix`; Welch sweep button-gated | OPEN (acceptable for beta) |
+| N6 | ~~MINOR~~ FIXED | `core/spectral.py` | 96, 133 | `@st.cache_data` on `compute_output_spectral_matrix` and `compute_welch_quantities` | FIXED |
 | T1 | ~~NIT~~ FIXED | `pages/7_MAC.py` | 188 | `.get()` used for `mac_fe_freqs`, `mac_exp_freqs` | FIXED |
 | T2 | ~~NIT~~ FIXED | `core/sysid.py` | 8–12 | `compute_cmif` docstring corrected to "L2 row norm" | FIXED |
 | T3 | ~~NIT~~ FIXED | `pages/7_MAC.py` | 162 | MIMO Run A caption added to UI | FIXED |

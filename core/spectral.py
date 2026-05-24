@@ -129,6 +129,7 @@ def compute_output_spectral_matrix(
     return freqs, Syy
 
 
+@st.cache_data
 def compute_welch_quantities(
     x: np.ndarray,
     y: np.ndarray,
