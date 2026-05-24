@@ -1,10 +1,16 @@
 # Critical Design Review — Modal Analysis Application
-**Date:** 2026-05-24 (Pass 4 — re-review)
+**Date:** 2026-05-24 (Pass 5 — re-review)
 **Reviewer:** Claude Code (claude-sonnet-4-6)
 **Branch:** `mac_dev`
-**Test result:** `pytest tests/ -v` — **95 passed, 0 failed, 1 warning** (unrelated to code under review)
-**Prior review:** 2026-05-24 (Pass 3, P3-M1/M2 blocked merge)
+**Test result:** `pytest tests/ -v` — **103 passed, 0 failed, 1 warning** (unrelated to code under review)
+**Prior review:** 2026-05-24 (Pass 4, approved with P4-N1/N2 open)
 **Review standard:** `docs/code_review.md`
+
+---
+
+## Executive Summary — Pass 5
+
+**Both Pass 4 open items resolved.** Commits since Pass 4: `0b94ebb` (P4-N2 NIT fix — added `mimo_frf_est_used` to `data_model.md`) and `dd3a4d1` (linter cleanup — isort, ruff, whitespace only). Test count grew from 95 to 103; 8 new tests added in the linter commit. P4-N1 is also confirmed CLOSED: the `if not sel_outputs: raise ValueError` guard was added in commit `ac99865` (pre-dating Pass 4); the Pass 4 review erroneously left it open. Pass 5 finds **0 new CRITICAL/MAJOR**, **1 new MINOR**, and **1 new NIT** — no blocking items. Branch is approved for merge.
 
 ---
 
@@ -32,10 +38,10 @@
 |---|---|
 | Read relevant `docs/workflow_pages.md` sections | ✓ |
 | Read `docs/data_model.md` | ✓ |
-| Confirm docs updated with code changes | Pass 4: `mimo_frf_est_used` missing from `data_model.md` (NIT, see P4-N2) |
-| Check `todo.md` — known bugs | USER items open (USER1-3); no code-review items in MAJOR/MINOR sections |
-| Confirm tests exist for new/changed `core/` functions | ✓ — 95 tests, up from 93 |
-| Identify high-blast-radius `core/` signature changes | None in this diff |
+| Confirm docs updated with code changes | Pass 5: `dd3a4d1` is linter-only; no doc updates required. `0b94ebb` added `mimo_frf_est_used` to `data_model.md` (closes P4-N2). |
+| Check `todo.md` — known bugs | No open code-review items; USER NTH1 open |
+| Confirm tests exist for new/changed `core/` functions | ✓ — 103 tests, up from 95 |
+| Identify high-blast-radius `core/` signature changes | None — `dd3a4d1` is cosmetic only |
 
 ---
 
@@ -174,6 +180,20 @@ Remaining coverage gaps:
 | `docs/data_model.md` session-state table | PASS — all keys documented; `add_channel` description updated |
 | `docs/workflow_pages.md` algorithm descriptions | PASS — matches code |
 | `docs/data_model.md` core API signatures | PASS — all `core/` signatures present and accurate |
+
+---
+
+## Final Approval Gate — Pass 5
+
+| Gate | Status |
+|---|---|
+| All [CRITICAL] resolved | ✓ — 0 open |
+| All [MAJOR] resolved | ✓ — 0 open |
+| `pytest tests/ -v` passes | ✓ 103/103 |
+| `docs/data_model.md` up to date | ✓ — P4-N2 fixed in `0b94ebb` |
+| No new [CRITICAL] introduced since last review pass | ✓ |
+
+**Pass 5 verdict: APPROVED — no blocking issues. 1 MINOR (P5-N1) and 1 NIT (P5-N2) open; fix in follow-up PR.**
 
 ---
 
@@ -328,13 +348,15 @@ FIX: Catch the RuntimeWarning inside `build_stability_table` using `warnings.cat
 
 **[MINOR] P4-N1 — `core/mimo.py:61` — `compute_mimo_frfs` latent `NameError` when `sel_outputs=[]` in Welch branch**
 
-WHY: The Welch branch assigns `freqs_full = res_a["freqs"]` after the `for ch in sel_outputs` loop. If `sel_outputs` is empty the loop body never executes, `res_a` is undefined, and the subsequent reference raises `NameError`. The page-level guard (`if not sel_outputs: st.stop()`) prevents this in normal use, but the core function has no internal protection and could fail if called directly.
+~~WHY: The Welch branch assigns `freqs_full = res_a["freqs"]` after the `for ch in sel_outputs` loop. If `sel_outputs` is empty the loop body never executes, `res_a` is undefined, and the subsequent reference raises `NameError`. The page-level guard (`if not sel_outputs: st.stop()`) prevents this in normal use, but the core function has no internal protection and could fail if called directly.~~
 
-FIX: Assign `freqs_full` before the loop and update inside it, or validate at function entry:
-```python
-if not sel_outputs:
-    raise ValueError("sel_outputs must not be empty")
-```
+~~FIX: Assign `freqs_full` before the loop and update inside it, or validate at function entry:~~
+~~```python~~
+~~if not sel_outputs:~~
+~~    raise ValueError("sel_outputs must not be empty")~~
+~~```~~
+
+**CLOSED in Pass 5**: The fix (`if not sel_outputs: raise ValueError("sel_outputs must not be empty")`) was already applied at `core/mimo.py:43-44` in commit `ac99865` ("getting ready for release"), which predates Pass 4. The guard was present when Pass 4 was written; the Pass 4 reviewer did not see it. No further action needed.
 
 ---
 
@@ -350,6 +372,45 @@ FIX: Add to the `data_model.md` session-state table after the `mimo_n_out` row:
 ```
 | `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
 ```
+
+**FIXED in `0b94ebb`** — key added to `data_model.md` table.
+
+---
+
+---
+
+## Pass 5 New Findings
+
+### MINOR Issues (new — non-blocking)
+
+---
+
+**[MINOR] P5-N1 — `core/geometry.py:255` — `_RE_FLOAT` regex silently drops F06 float values whose exponent has no sign character**
+
+WHY: The pattern `r"[+-]?\d+\.?\d*[Ee][+-]\d+"` makes the `[+-]` before the exponent digits **mandatory** (no `?` quantifier). NASTRAN F06 files from some solvers or post-processors write values as `1.234E3` or `1.234e3` (no explicit `+` sign on positive exponents). Such values fail to match; `re.findall` returns an empty list; the eigenvector DOF displacement is silently treated as zero. Mode shapes for affected DOFs are wrong with no error or warning.
+
+FIX: Make the exponent sign optional:
+```python
+_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]?\d+", re.IGNORECASE)
+```
+
+---
+
+### NIT Issues (new)
+
+---
+
+**[NIT] P5-N2 — `pyproject.toml:56` — `E402` (module-level import not at top) suppressed globally, not scoped to `pages/`**
+
+WHY: `ignore = ["E402", ...]` was added to the ruff config to suppress the `set_page_config()` before imports pattern that Streamlit requires in page files. However, the suppression is project-wide. Any accidental deferred or conditional import in `core/` or `tools/` modules will now pass the linter without notice.
+
+FIX: Scope the suppression to pages only using per-file ignores:
+```toml
+[tool.ruff.lint.per-file-ignores]
+"pages/*.py" = ["E402"]
+"app.py" = ["E402"]
+```
+Remove `E402` from the global `ignore` list.
 
 ---
 
@@ -385,5 +446,7 @@ FIX: Add to the `data_model.md` session-state table after the `mimo_n_out` row:
 | P3-N2 | ~~MINOR~~ FIXED | `pages/3_Spectral_Analysis.py` | 268 | `N = fft_res.get("n_samples", ...)` reads stored sample count; `n_samples` stored by page 2 | FIXED |
 | P3-N3 | ~~MINOR~~ FIXED | `core/sysid.py` | 415–416 | `found_upper` guard; returns `(0.0, freqs[0], freqs[-1])` sentinel; test added | FIXED |
 | P3-N4 | ~~MINOR~~ FIXED | `core/sysid.py` | 302–308; `pages/5_MIMO.py` | `build_stability_table` propagates `RuntimeWarning`; MIMO page catches with `warnings.catch_warnings`; test added | FIXED |
-| P4-N1 | MINOR | `core/mimo.py` | 61 | Latent `NameError` in `compute_mimo_frfs` Welch branch when `sel_outputs=[]` — `res_a` referenced before assignment | OPEN |
-| P4-N2 | NIT | `docs/data_model.md` | — | `mimo_frf_est_used` session-state key in `workflow_pages.md:420` but missing from `data_model.md` table | OPEN |
+| P4-N1 | ~~MINOR~~ CLOSED | `core/mimo.py` | 43 | Latent `NameError` in `compute_mimo_frfs` Welch branch when `sel_outputs=[]` — fixed in `ac99865` before Pass 4; erroneously left open | CLOSED (was already fixed) |
+| P4-N2 | ~~NIT~~ FIXED | `docs/data_model.md` | — | `mimo_frf_est_used` session-state key added to `data_model.md` table | FIXED (`0b94ebb`) |
+| P5-N1 | MINOR | `core/geometry.py` | 255 | `_RE_FLOAT` regex requires explicit sign on exponent — silently drops valid NASTRAN floats like `1.234E3` | OPEN |
+| P5-N2 | NIT | `pyproject.toml` | 56 | `E402` ruff ignore is project-wide — should be scoped to `pages/*.py` and `app.py` | OPEN |
