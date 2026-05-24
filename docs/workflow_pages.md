@@ -10,7 +10,7 @@
 | 3 | Spectral Analysis | Implemented |
 | 4 | System Identification (SIMO EMA) | Implemented |
 | 5 | MIMO EMA (Multi-Reference System Identification) | Implemented |
-| 6 | Modal Assurance Criteria (MAC) | Stub |
+| 6 | Modal Assurance Criteria (MAC) | Implemented |
 | 7 | Wireframe Mode Shape | Implemented |
 
 ---
