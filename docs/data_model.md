@@ -47,6 +47,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_stability_table` | `5_MIMO.py` (Build) | `5_MIMO.py` (Stability tab, Step 2) |
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
+| `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `oma_df` | `6_OMA.py` (load) | `6_OMA.py` |
 | `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` |
