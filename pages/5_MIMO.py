@@ -19,7 +19,11 @@ from core.sysid import (
     synthesize_frf,
 )
 
-st.set_page_config(page_title="MIMO EMA", layout="wide")
+st.set_page_config(page_title="smodal · MIMO", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("MIMO — Multi-Reference System Identification (EMA)")
 
 eps = np.finfo(float).tiny

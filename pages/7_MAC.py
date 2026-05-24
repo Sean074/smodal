@@ -6,7 +6,11 @@ import streamlit as st
 from core.geometry import parse_f06
 from core.sysid import compute_mac
 
-st.set_page_config(page_title="MAC", layout="wide")
+st.set_page_config(page_title="smodal · MAC", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("Modal Assurance Criteria (MAC)")
 
 # ── Section A: Experimental results ──────────────────────────────────────────

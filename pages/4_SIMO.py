@@ -19,7 +19,11 @@ from core.sysid import (
     synthesize_frf,
 )
 
-st.set_page_config(page_title="SIMO — System Identification", layout="wide")
+st.set_page_config(page_title="smodal · SIMO", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("SIMO — System Identification (EMA)")
 
 eps = np.finfo(float).tiny

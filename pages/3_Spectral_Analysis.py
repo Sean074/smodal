@@ -10,7 +10,11 @@ from core.spectral import (
     WINDOW_SCIPY_NAMES,
 )
 
-st.set_page_config(page_title="Spectral Analysis", layout="wide")
+st.set_page_config(page_title="smodal · Spectral Analysis", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("Spectral Analysis")
 
 # ── Guard ─────────────────────────────────────────────────────────────────────

@@ -3,7 +3,11 @@ import streamlit as st
 import nbformat
 from pathlib import Path
 
-st.set_page_config(page_title="Method", layout="wide")
+st.set_page_config(page_title="smodal · Method", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("Analysis Methods")
 
 nb_path = Path("docs/methods.ipynb")

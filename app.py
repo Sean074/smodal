@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="Modal Analysis", layout="wide")
+st.set_page_config(page_title="smodal", layout="wide")
 
 # ---------------------------------------------------------------------------
 # Session state initialisation
@@ -22,7 +22,7 @@ for key, val in _DEFAULTS.items():
 # ---------------------------------------------------------------------------
 # Page content
 # ---------------------------------------------------------------------------
-st.title("Modal Analysis — System Identification: SIMO and MIMO Swept Sine Analysis")
+st.title("smodal — Modal Analysis")
 st.markdown("---")
 
 st.header("Analysis Information")

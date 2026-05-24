@@ -1,4 +1,4 @@
-# Modal Analysis
+# smodal — Modal Analysis
 
 A multi-page Streamlit app for structural dynamics modal analysis and experimental modal analysis (EMA). Supports SIMO and MIMO testing workflows through a browser-based GUI — no coding required to run an analysis.
 

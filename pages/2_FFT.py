@@ -4,7 +4,11 @@ from plotly.subplots import make_subplots
 import streamlit as st
 from core.spectral import compute_fft, compute_psd
 
-st.set_page_config(page_title="FFT", layout="wide")
+st.set_page_config(page_title="smodal · FFT", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("FFT")
 
 if st.session_state.get("df") is None:

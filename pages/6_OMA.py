@@ -9,7 +9,11 @@ from core.preprocess import trim_and_filter
 from core.spectral import compute_output_spectral_matrix
 from core.sysid import cmif_peak_estimates, fdd_damping, fdd_svd
 
-st.set_page_config(page_title="OMA — Operational Modal Analysis", layout="wide")
+st.set_page_config(page_title="smodal · OMA", layout="wide")
+
+from core import brand
+brand.page_header()
+
 st.title("OMA — Operational Modal Analysis")
 st.caption(
     "Frequency Domain Decomposition (FDD) from output-only response data. "
