@@ -34,6 +34,7 @@ def sdof_frf():
 def sample_df():
     """DataFrame loaded from data/input/sample_3ch.csv."""
     from core.data_loader import load_csv
+
     df, err = load_csv(str(ROOT / "data" / "input" / "sample_3ch.csv"))
     assert err is None, f"sample_df fixture: {err}"
     return df

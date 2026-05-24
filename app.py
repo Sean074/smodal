@@ -28,16 +28,10 @@ st.markdown("---")
 st.header("Analysis Information")
 col1, col2 = st.columns(2)
 with col1:
-    st.session_state.analysis_name = st.text_input(
-        "Analysis Name", value=st.session_state.analysis_name
-    )
+    st.session_state.analysis_name = st.text_input("Analysis Name", value=st.session_state.analysis_name)
 with col2:
-    st.session_state.analyst = st.text_input(
-        "Analyst Name", value=st.session_state.analyst
-    )
-st.session_state.description = st.text_area(
-    "Analysis Description", value=st.session_state.description, height=80
-)
+    st.session_state.analyst = st.text_input("Analyst Name", value=st.session_state.analyst)
+st.session_state.description = st.text_area("Analysis Description", value=st.session_state.description, height=80)
 
 st.markdown("---")
 st.subheader("Workflow")

@@ -41,6 +41,4 @@ def test_page_header_runs(monkeypatch):
     assert any(kind == "caption" and brand.APP_NAME in msg for kind, msg in calls), (
         "page_header() should emit a caption containing APP_NAME"
     )
-    assert any(kind == "markdown" for kind, _ in calls), (
-        "page_header() should emit a markdown divider"
-    )
+    assert any(kind == "markdown" for kind, _ in calls), "page_header() should emit a markdown divider"

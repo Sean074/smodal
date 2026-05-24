@@ -34,8 +34,7 @@ if uploaded_file is not None and st.session_state.get("oma_file_name") != upload
         st.session_state["oma_df"] = df_raw
         st.session_state["oma_sample_rate"] = float(compute_sample_rate(df_raw["time"].values))
         st.session_state["oma_file_name"] = uploaded_file.name
-        for k in ["oma_freqs", "oma_sv", "oma_svecs", "oma_Syy", "oma_modal_results",
-                   "oma_peak_estimates"]:
+        for k in ["oma_freqs", "oma_sv", "oma_svecs", "oma_Syy", "oma_modal_results", "oma_peak_estimates"]:
             st.session_state.pop(k, None)
         st.session_state["oma_peak_seed_ver"] = st.session_state.get("oma_peak_seed_ver", 0) + 1
 
@@ -93,9 +92,7 @@ with st.expander("Pre-processing (optional)"):
     if filter_type != "None":
         fc1, fc2 = st.columns(2)
         with fc1:
-            filter_order = st.slider(
-                "Filter order", min_value=1, max_value=8, value=4, key="oma_filter_order"
-            )
+            filter_order = st.slider("Filter order", min_value=1, max_value=8, value=4, key="oma_filter_order")
         with fc2:
             if filter_type in ("Lowpass", "Highpass"):
                 cutoff_params = float(
@@ -132,9 +129,7 @@ with st.expander("Pre-processing (optional)"):
 
     n_samples = max(4, int(round((t_max - t_min) * fs)) + 1)
     filt_label = filter_type if filter_type != "None" else "no filter"
-    st.caption(
-        f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}"
-    )
+    st.caption(f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}")
 
     if st.checkbox("Show time history preview", value=True, key="oma_show_th"):
         preview_cols = st.multiselect(
@@ -148,15 +143,11 @@ with st.expander("Pre-processing (optional)"):
             df_trim = oma_df[mask_t]
 
             _cutoffs_ok = not (
-                isinstance(cutoff_params, list)
-                and len(cutoff_params) == 2
-                and cutoff_params[0] >= cutoff_params[1]
+                isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1]
             )
             filter_active = filter_type != "None" and cutoff_params is not None and _cutoffs_ok
             if filter_active:
-                df_filt = trim_and_filter(
-                    oma_df, t_min, t_max, filter_type, filter_order, cutoff_params, fs
-                )
+                df_filt = trim_and_filter(oma_df, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
 
             fig_prev = make_subplots(
                 rows=len(preview_cols),
@@ -171,22 +162,28 @@ with st.expander("Pre-processing (optional)"):
                 row = pi + 1
                 fig_prev.add_trace(
                     go.Scatter(
-                        x=df_trim["time"], y=df_trim[ch],
-                        mode="lines", name="Raw",
+                        x=df_trim["time"],
+                        y=df_trim[ch],
+                        mode="lines",
+                        name="Raw",
                         line=dict(color="#1f77b4", width=1),
                         showlegend=(pi == 0),
                     ),
-                    row=row, col=1,
+                    row=row,
+                    col=1,
                 )
                 if filter_active:
                     fig_prev.add_trace(
                         go.Scatter(
-                            x=df_filt["time"], y=df_filt[ch],
-                            mode="lines", name="Filtered",
+                            x=df_filt["time"],
+                            y=df_filt[ch],
+                            mode="lines",
+                            name="Filtered",
                             line=dict(color="#ff7f0e", width=1.5, dash="dash"),
                             showlegend=(pi == 0),
                         ),
-                        row=row, col=1,
+                        row=row,
+                        col=1,
                     )
                 fig_prev.update_yaxes(title_text=ch, row=row, col=1)
                 if row == len(preview_cols):
@@ -201,13 +198,11 @@ with st.expander("Pre-processing (optional)"):
 
 
 def _get_proc_df():
-    _ok = not (
-        isinstance(cutoff_params, list)
-        and len(cutoff_params) == 2
-        and cutoff_params[0] >= cutoff_params[1]
-    )
+    _ok = not (isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1])
     return trim_and_filter(
-        oma_df, t_min, t_max,
+        oma_df,
+        t_min,
+        t_max,
         filter_type if _ok else "None",
         filter_order,
         cutoff_params if _ok else None,
@@ -222,12 +217,8 @@ ctrl_col, chart_col = st.columns([1, 3])
 with ctrl_col:
     st.subheader("Step 1 — Build Power CMIF")
 
-    n_seg = st.number_input(
-        "Segments", min_value=2, max_value=100, value=8, step=1, key="oma_segments"
-    )
-    ovlp_pct = st.slider(
-        "Overlap (%)", min_value=0, max_value=90, value=50, step=5, key="oma_overlap"
-    )
+    n_seg = st.number_input("Segments", min_value=2, max_value=100, value=8, step=1, key="oma_segments")
+    ovlp_pct = st.slider("Overlap (%)", min_value=0, max_value=90, value=50, step=5, key="oma_overlap")
     welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"], key="oma_welch_win")
 
     nperseg_preview = max(4, n_samples // n_seg)
@@ -246,9 +237,7 @@ with ctrl_col:
         key="oma_frange",
     )
 
-    build_btn = st.button(
-        "Build Power CMIF", type="primary", use_container_width=True, key="oma_build"
-    )
+    build_btn = st.button("Build Power CMIF", type="primary", use_container_width=True, key="oma_build")
 
     st.divider()
     st.subheader("Step 2 — Mode Specification")
@@ -270,24 +259,24 @@ with ctrl_col:
         auto_peaks = []
         auto_n = 2
 
-    n_modes = st.number_input(
-        "Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="oma_n_modes"
-    )
+    n_modes = st.number_input("Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="oma_n_modes")
 
     if len(auto_peaks) >= n_modes:
         init_rows = auto_peaks[:n_modes]
     elif len(auto_peaks) > 0:
-        init_rows = auto_peaks + [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
-                                   for _ in range(n_modes - len(auto_peaks))]
+        init_rows = auto_peaks + [
+            {"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes - len(auto_peaks))
+        ]
     else:
-        init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
-                     for _ in range(n_modes)]
+        init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes)]
 
-    init_df = pd.DataFrame({
-        "fn (Hz)": [r["fn_hz"] for r in init_rows[:n_modes]],
-        "ξ (%)": [r["xi_pct"] for r in init_rows[:n_modes]],
-        "source": [r["source"] for r in init_rows[:n_modes]],
-    })
+    init_df = pd.DataFrame(
+        {
+            "fn (Hz)": [r["fn_hz"] for r in init_rows[:n_modes]],
+            "ξ (%)": [r["xi_pct"] for r in init_rows[:n_modes]],
+            "source": [r["source"] for r in init_rows[:n_modes]],
+        }
+    )
 
     seed_ver = st.session_state.get("oma_peak_seed_ver", 0)
     estimates_df = st.data_editor(
@@ -302,16 +291,12 @@ with ctrl_col:
         key=f"oma_estimates_v{seed_ver}",
     )
 
-    extract_btn = st.button(
-        "Extract Mode Shapes", type="secondary", use_container_width=True, key="oma_extract"
-    )
+    extract_btn = st.button("Extract Mode Shapes", type="secondary", use_container_width=True, key="oma_extract")
 
 # ── Build Power CMIF ──────────────────────────────────────────────────────────
 if build_btn:
     _cutoffs_ok = not (
-        isinstance(cutoff_params, list)
-        and len(cutoff_params) == 2
-        and cutoff_params[0] >= cutoff_params[1]
+        isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1]
     )
     if not _cutoffs_ok:
         st.error("Filter: low cutoff must be less than high cutoff.")
@@ -326,9 +311,7 @@ if build_btn:
     noverlap = int(nperseg * ovlp_pct / 100)
 
     with st.spinner("Computing output spectral matrix (CPSD)…"):
-        freqs_full, Syy = compute_output_spectral_matrix(
-            signals, fs, nperseg, noverlap, welch_win
-        )
+        freqs_full, Syy = compute_output_spectral_matrix(signals, fs, nperseg, noverlap, welch_win)
 
     with st.spinner("Running FDD (SVD)…"):
         sv, svecs = fdd_svd(Syy)
@@ -389,13 +372,15 @@ if extract_btn:
             xi_pct = float(xi_arr[i])
         # Mode shape: first left singular vector at the peak frequency
         mode_shape = oma_svecs[peak_idx, :, 0]
-        modes.append({
-            "fn_hz": float(oma_freqs[peak_idx]),
-            "xi_pct": xi_pct,
-            "mode_shape": mode_shape,
-            "f_a": f_a,
-            "f_b": f_b,
-        })
+        modes.append(
+            {
+                "fn_hz": float(oma_freqs[peak_idx]),
+                "xi_pct": xi_pct,
+                "mode_shape": mode_shape,
+                "f_a": f_a,
+                "f_b": f_b,
+            }
+        )
 
     st.session_state["oma_modal_results"] = {
         "fn": np.array([m["fn_hz"] for m in modes]),
@@ -427,14 +412,19 @@ with chart_col:
             colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
             for r in range(n_sv):
                 sv_db = 10 * np.log10(np.maximum(oma_sv[band_mask, r], eps))
-                fig.add_trace(go.Scatter(
-                    x=oma_freqs[band_mask],
-                    y=sv_db,
-                    mode="lines",
-                    name=f"σ{r + 1}",
-                    line=dict(color=colors[r % len(colors)], width=1.5 if r == 0 else 1.0,
-                              dash="solid" if r == 0 else "dash"),
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=oma_freqs[band_mask],
+                        y=sv_db,
+                        mode="lines",
+                        name=f"σ{r + 1}",
+                        line=dict(
+                            color=colors[r % len(colors)],
+                            width=1.5 if r == 0 else 1.0,
+                            dash="solid" if r == 0 else "dash",
+                        ),
+                    )
+                )
 
             # Overlay identified peaks if extracted
             if modal_res is not None:
@@ -443,12 +433,15 @@ with chart_col:
                         peak_idx = int(np.argmin(np.abs(oma_freqs - fn)))
                         sv_db_peak = 10 * np.log10(max(oma_sv[peak_idx, 0], eps))
                         fig.add_vline(
-                            x=fn, line=dict(color="red", dash="dot", width=1),
+                            x=fn,
+                            line=dict(color="red", dash="dot", width=1),
                         )
                         fig.add_annotation(
-                            x=fn, y=sv_db_peak,
+                            x=fn,
+                            y=sv_db_peak,
                             text=f"M{m_idx + 1}<br>{fn:.2f} Hz",
-                            showarrow=True, arrowhead=2,
+                            showarrow=True,
+                            arrowhead=2,
                             font=dict(size=10, color="red"),
                             arrowcolor="red",
                         )
@@ -474,7 +467,7 @@ with chart_col:
         else:
             fn_fit = modal_res["fn"]
             xi_fit = modal_res["xi"]
-            shapes = modal_res["mode_shapes"]   # (n_out, n_modes) complex
+            shapes = modal_res["mode_shapes"]  # (n_out, n_modes) complex
             out_chs = modal_res["output_channels"]
             f_a_list = modal_res["f_a"]
             f_b_list = modal_res["f_b"]
@@ -494,9 +487,7 @@ with chart_col:
                     row[f"|φ| {ch}"] = round(float(np.abs(shapes[o, m])), 6)
                     row[f"∠φ {ch} (°)"] = round(float(np.degrees(np.angle(shapes[o, m]))), 2)
                 summary_rows.append(row)
-            st.dataframe(
-                pd.DataFrame(summary_rows), use_container_width=True, hide_index=True
-            )
+            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
             # Mode shape magnitude bar charts
             if n_modes_fit > 0 and len(out_chs) > 0:
@@ -521,7 +512,8 @@ with chart_col:
                             name=f"Mode {m + 1}",
                             showlegend=False,
                         ),
-                        row=1, col=m + 1,
+                        row=1,
+                        col=m + 1,
                     )
                     fig_ms.update_xaxes(title_text="Norm |φ|", row=1, col=m + 1)
 
@@ -539,8 +531,8 @@ with chart_col:
 
             # ── Auto-PSD: measured vs. analytical fit ──────────────────────────
             oma_Syy_plot = st.session_state.get("oma_Syy")
-            oma_sv_plot  = st.session_state.get("oma_sv")
-            oma_fq_plot  = st.session_state.get("oma_freqs")
+            oma_sv_plot = st.session_state.get("oma_sv")
+            oma_fq_plot = st.session_state.get("oma_freqs")
 
             if oma_Syy_plot is not None and oma_sv_plot is not None and oma_fq_plot is not None:
                 band_mask_s = (oma_fq_plot >= f_min) & (oma_fq_plot <= f_max)
@@ -552,15 +544,15 @@ with chart_col:
                 # A_r = σ₁(ωr) · 4ξr² ωr⁴  (from peak value under rank-1 approx)
                 S_synth = np.zeros((int(band_mask_s.sum()), len(out_chs)))
                 for r in range(n_modes_fit):
-                    wn   = 2 * np.pi * fn_fit[r]
+                    wn = 2 * np.pi * fn_fit[r]
                     xi_r = xi_fit[r]  # fraction
-                    denom = (wn**2 - om_b**2)**2 + (2 * xi_r * wn * om_b)**2 + eps
-                    H2   = 1.0 / denom
+                    denom = (wn**2 - om_b**2) ** 2 + (2 * xi_r * wn * om_b) ** 2 + eps
+                    H2 = 1.0 / denom
                     pidx = int(np.argmin(np.abs(oma_fq_plot - fn_fit[r])))
                     sv1_peak = float(oma_sv_plot[pidx, 0])
                     A_r = sv1_peak * 4 * xi_r**2 * wn**4
                     for i in range(len(out_chs)):
-                        phi2 = float(np.abs(shapes[i, r])**2)
+                        phi2 = float(np.abs(shapes[i, r]) ** 2)
                         S_synth[:, i] += phi2 * A_r * H2
 
                 fig_psd = make_subplots(
@@ -571,41 +563,54 @@ with chart_col:
                     subplot_titles=out_chs,
                 )
                 for i, ch in enumerate(out_chs):
-                    S_meas     = oma_Syy_plot[band_mask_s, i, i].real
-                    S_meas_db  = 10 * np.log10(np.maximum(S_meas, eps))
+                    S_meas = oma_Syy_plot[band_mask_s, i, i].real
+                    S_meas_db = 10 * np.log10(np.maximum(S_meas, eps))
                     S_synth_db = 10 * np.log10(np.maximum(S_synth[:, i], eps))
 
                     fig_psd.add_trace(
                         go.Scatter(
-                            x=fq_b, y=S_meas_db, mode="lines",
-                            name="Measured", showlegend=(i == 0),
+                            x=fq_b,
+                            y=S_meas_db,
+                            mode="lines",
+                            name="Measured",
+                            showlegend=(i == 0),
                             line=dict(color="#1f77b4", width=1),
                         ),
-                        row=i + 1, col=1,
+                        row=i + 1,
+                        col=1,
                     )
                     fig_psd.add_trace(
                         go.Scatter(
-                            x=fq_b, y=S_synth_db, mode="lines",
-                            name="SDOF fit", showlegend=(i == 0),
+                            x=fq_b,
+                            y=S_synth_db,
+                            mode="lines",
+                            name="SDOF fit",
+                            showlegend=(i == 0),
                             line=dict(color="#d62728", width=1.5, dash="dash"),
                         ),
-                        row=i + 1, col=1,
+                        row=i + 1,
+                        col=1,
                     )
                     for fn_m in fn_fit:
                         if f_min <= fn_m <= f_max:
                             ax_n = "" if i == 0 else str(i + 1)
                             fig_psd.add_shape(
                                 type="line",
-                                x0=fn_m, x1=fn_m,
-                                y0=0, y1=1,
-                                xref=f"x{ax_n}", yref=f"y{ax_n} domain",
+                                x0=fn_m,
+                                x1=fn_m,
+                                y0=0,
+                                y1=1,
+                                xref=f"x{ax_n}",
+                                yref=f"y{ax_n} domain",
                                 line=dict(color="green", dash="dot", width=1),
                             )
                     fig_psd.update_yaxes(title_text="PSD (dB)", row=i + 1, col=1)
 
                 fig_psd.update_xaxes(
-                    title_text="Frequency (Hz)", range=[f_min, f_max],
-                    row=len(out_chs), col=1,
+                    title_text="Frequency (Hz)",
+                    range=[f_min, f_max],
+                    row=len(out_chs),
+                    col=1,
                 )
                 fig_psd.update_layout(
                     height=max(300, 200 * len(out_chs)),

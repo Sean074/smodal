@@ -35,14 +35,10 @@ eps = np.finfo(float).tiny
 col_up_a, col_up_b = st.columns(2)
 with col_up_a:
     st.markdown("**Run A — In-phase excitation**")
-    file_a = st.file_uploader(
-        "Upload Run A CSV", type="csv", key="mimo_upload_a", label_visibility="collapsed"
-    )
+    file_a = st.file_uploader("Upload Run A CSV", type="csv", key="mimo_upload_a", label_visibility="collapsed")
 with col_up_b:
     st.markdown("**Run B — Out-of-phase excitation**")
-    file_b = st.file_uploader(
-        "Upload Run B CSV", type="csv", key="mimo_upload_b", label_visibility="collapsed"
-    )
+    file_b = st.file_uploader("Upload Run B CSV", type="csv", key="mimo_upload_b", label_visibility="collapsed")
 
 # Load on file change (name-based guard avoids re-reading on every rerun)
 if file_a is not None and st.session_state.get("mimo_file_a_name") != file_a.name:
@@ -53,7 +49,15 @@ if file_a is not None and st.session_state.get("mimo_file_a_name") != file_a.nam
         st.session_state["mimo_run_a_df"] = df_a
         st.session_state["mimo_sample_rate"] = float(compute_sample_rate(df_a["time"].values))
         st.session_state["mimo_file_a_name"] = file_a.name
-        for k in ["mimo_H_mat", "mimo_freqs", "mimo_freqs_band", "mimo_H_mat_band", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
+        for k in [
+            "mimo_H_mat",
+            "mimo_freqs",
+            "mimo_freqs_band",
+            "mimo_H_mat_band",
+            "mimo_cmif",
+            "mimo_stability_table",
+            "mimo_modal_results",
+        ]:
             st.session_state.pop(k, None)
 
 if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.name:
@@ -63,7 +67,15 @@ if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.nam
     else:
         st.session_state["mimo_run_b_df"] = df_b
         st.session_state["mimo_file_b_name"] = file_b.name
-        for k in ["mimo_H_mat", "mimo_freqs", "mimo_freqs_band", "mimo_H_mat_band", "mimo_cmif", "mimo_stability_table", "mimo_modal_results"]:
+        for k in [
+            "mimo_H_mat",
+            "mimo_freqs",
+            "mimo_freqs_band",
+            "mimo_H_mat_band",
+            "mimo_cmif",
+            "mimo_stability_table",
+            "mimo_modal_results",
+        ]:
             st.session_state.pop(k, None)
         fs_b = float(compute_sample_rate(df_b["time"].values))
         fs_a = st.session_state.get("mimo_sample_rate")
@@ -99,9 +111,7 @@ with ch_col_out:
     avail_outputs = [c for c in common_cols if c not in (input_a, input_b)]
     if not avail_outputs:
         avail_outputs = [c for c in common_cols if c != input_a]
-    sel_outputs = st.multiselect(
-        "Output channels", options=avail_outputs, default=avail_outputs, key="mimo_outputs"
-    )
+    sel_outputs = st.multiselect("Output channels", options=avail_outputs, default=avail_outputs, key="mimo_outputs")
 
 if not sel_outputs:
     st.warning("Select at least one output channel.")
@@ -136,9 +146,7 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
     if filter_type != "None":
         fc1, fc2 = st.columns(2)
         with fc1:
-            filter_order = st.slider(
-                "Filter order", min_value=1, max_value=8, value=4, key="mimo_filter_order"
-            )
+            filter_order = st.slider("Filter order", min_value=1, max_value=8, value=4, key="mimo_filter_order")
         with fc2:
             if filter_type in ("Lowpass", "Highpass"):
                 cutoff_params = float(
@@ -175,9 +183,7 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
 
     n_samples = max(4, int(round((t_max - t_min) * fs)) + 1)
     filt_label = filter_type if filter_type != "None" else "no filter"
-    st.caption(
-        f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}"
-    )
+    st.caption(f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}")
 
     if st.checkbox("Show time history preview", value=True, key="mimo_show_th"):
         preview_cols = st.multiselect(
@@ -278,12 +284,11 @@ with st.expander("Pre-processing (optional — applied identically to both runs)
             )
             st.plotly_chart(fig_prev, use_container_width=True)
 
+
 # ── helpers for preview expanders ─────────────────────────────────────────────
 def _preview_proc(run_df):
     _cutoffs_ok = not (
-        isinstance(cutoff_params, list)
-        and len(cutoff_params) == 2
-        and cutoff_params[0] >= cutoff_params[1]
+        isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1]
     )
     _ftype = filter_type if _cutoffs_ok else "None"
     _cparams = cutoff_params if _cutoffs_ok else None
@@ -293,8 +298,11 @@ def _preview_proc(run_df):
 # ── Section C: FFT Preview expander ───────────────────────────────────────────
 with st.expander("FFT preview (optional — input & output channels, trimmed/filtered)"):
     fft_fmax = st.slider(
-        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
-        value=float(fs / 2), key="mimo_fft_prev_fmax",
+        "Max frequency (Hz)",
+        min_value=0.0,
+        max_value=float(fs / 2),
+        value=float(fs / 2),
+        key="mimo_fft_prev_fmax",
     )
     col_ffta, col_fftb = st.columns(2)
     ra_fft = _preview_proc(run_a)
@@ -315,8 +323,11 @@ with st.expander("FFT preview (optional — input & output channels, trimmed/fil
 # ── Section D: FRF Preview expander ───────────────────────────────────────────
 with st.expander("FRF preview (optional — H1 estimator, single FFT, trimmed/filtered)"):
     frf_fmax = st.slider(
-        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
-        value=float(fs / 2), key="mimo_frf_prev_fmax",
+        "Max frequency (Hz)",
+        min_value=0.0,
+        max_value=float(fs / 2),
+        value=float(fs / 2),
+        key="mimo_frf_prev_fmax",
     )
     col_frfa, col_frfb = st.columns(2)
     ra_frf = _preview_proc(run_a)
@@ -341,9 +352,7 @@ ctrl_col, chart_col = st.columns([1, 3])
 with ctrl_col:
     st.subheader("Step 1 — Stability Diagram")
 
-    frf_method = st.radio(
-        "FRF method", ["Welch", "Single FFT"], horizontal=True, key="mimo_frf_method"
-    )
+    frf_method = st.radio("FRF method", ["Welch", "Single FFT"], horizontal=True, key="mimo_frf_method")
 
     n_seg = 8
     ovlp_pct = 50
@@ -370,30 +379,14 @@ with ctrl_col:
         key="mimo_frange",
     )
 
-    max_order = st.slider(
-        "Max model order", min_value=4, max_value=100, value=40, step=2, key="mimo_max_order"
-    )
+    max_order = st.slider("Max model order", min_value=4, max_value=100, value=40, step=2, key="mimo_max_order")
 
     with st.expander("Stability thresholds"):
-        df_thr = (
-            st.number_input(
-                "Δf threshold (%)", value=1.0, step=0.5, min_value=0.1, key="mimo_df_thr"
-            )
-            / 100.0
-        )
-        dd_thr = (
-            st.number_input(
-                "Δξ threshold (%)", value=5.0, step=1.0, min_value=0.1, key="mimo_dd_thr"
-            )
-            / 100.0
-        )
-        mac_thr = st.slider(
-            "MAC threshold", min_value=0.5, max_value=1.0, value=0.95, step=0.01, key="mimo_mac_thr"
-        )
+        df_thr = st.number_input("Δf threshold (%)", value=1.0, step=0.5, min_value=0.1, key="mimo_df_thr") / 100.0
+        dd_thr = st.number_input("Δξ threshold (%)", value=5.0, step=1.0, min_value=0.1, key="mimo_dd_thr") / 100.0
+        mac_thr = st.slider("MAC threshold", min_value=0.5, max_value=1.0, value=0.95, step=0.01, key="mimo_mac_thr")
 
-    build_btn = st.button(
-        "Build Stability Diagram", type="primary", use_container_width=True, key="mimo_build"
-    )
+    build_btn = st.button("Build Stability Diagram", type="primary", use_container_width=True, key="mimo_build")
 
     st.divider()
     st.subheader("Step 2 — Mode Specification")
@@ -406,9 +399,7 @@ with ctrl_col:
     deduped = deduplicate_stable_poles(stab_results) if stab_results is not None else []
     auto_n = max(1, len(deduped))
 
-    n_modes = st.number_input(
-        "Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="mimo_n_modes"
-    )
+    n_modes = st.number_input("Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="mimo_n_modes")
 
     # Build initial estimates table
     cmif_for_peaks = cmif_cache[:, 0] if cmif_cache is not None else None
@@ -421,16 +412,13 @@ with ctrl_col:
             init_rows = deduped + extra
         else:
             init_rows = deduped + [
-                {"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
-                for _ in range(n_modes - len(deduped))
+                {"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes - len(deduped))
             ]
     else:
         if cmif_for_peaks is not None and freqs_cache is not None:
             init_rows = cmif_peak_estimates(cmif_for_peaks, freqs_cache, n_modes)
         else:
-            init_rows = [
-                {"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes)
-            ]
+            init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes)]
 
     init_df = pd.DataFrame(
         {
@@ -452,9 +440,7 @@ with ctrl_col:
         key="mimo_estimates",
     )
 
-    extract_btn = st.button(
-        "Extract Mode Shapes", type="secondary", use_container_width=True, key="mimo_extract"
-    )
+    extract_btn = st.button("Extract Mode Shapes", type="secondary", use_container_width=True, key="mimo_extract")
 
 # ── Build Stability Diagram ────────────────────────────────────────────────────
 if build_btn:
@@ -473,8 +459,17 @@ if build_btn:
 
     with st.spinner("Computing FRFs…"):
         H_stacked, freqs_full = compute_mimo_frfs(
-            run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs,
-            frf_method, frf_est, n_seg, ovlp_pct, welch_win,
+            run_a_proc,
+            run_b_proc,
+            input_a,
+            input_b,
+            sel_outputs,
+            fs,
+            frf_method,
+            frf_est,
+            n_seg,
+            ovlp_pct,
+            welch_win,
         )
 
     with st.spinner("Building stability diagram…"):
@@ -554,8 +549,8 @@ if extract_btn:
         residues = extract_residues(H_mat_band, freqs_ext, poles)  # (n_out*2, n_modes)
 
         # Reshape: first n_out_ext rows = Run A, next n_out_ext rows = Run B
-        res_A = residues[:n_out_ext, :]   # (n_out, n_modes)
-        res_B = residues[n_out_ext:, :]   # (n_out, n_modes)
+        res_A = residues[:n_out_ext, :]  # (n_out, n_modes)
+        res_B = residues[n_out_ext:, :]  # (n_out, n_modes)
         r3d = np.stack([res_A, res_B], axis=1)  # (n_out, 2, n_modes)
 
         # Symmetric (S) if Run A norm dominates, Antisymmetric (A) otherwise
@@ -566,9 +561,9 @@ if extract_btn:
             norm_B = np.linalg.norm(r3d[:, 1, m])
             mode_types.append("S" if norm_A >= norm_B else "A")
 
-        H_syn_band = synthesize_frf(freqs_ext, poles, residues)      # (n_band, n_out*2) for NMSE
-        H_syn = synthesize_frf(freqs_full, poles, residues)          # (n_freqs, n_out*2) for plotting
-        nmse = modal_fit_nmse(H_mat_band, H_syn_band)                # (n_out*2,)
+        H_syn_band = synthesize_frf(freqs_ext, poles, residues)  # (n_band, n_out*2) for NMSE
+        H_syn = synthesize_frf(freqs_full, poles, residues)  # (n_freqs, n_out*2) for plotting
+        nmse = modal_fit_nmse(H_mat_band, H_syn_band)  # (n_out*2,)
 
     fn_fit = np.abs(poles.imag) / (2.0 * np.pi)
     xi_fit = -poles.real / (np.abs(poles) + 1e-30)
@@ -577,8 +572,8 @@ if extract_btn:
         "fn": fn_fit,
         "xi": xi_fit,
         "poles": poles,
-        "mode_shapes": r3d,           # (n_out, 2, n_modes) complex
-        "residues_flat": residues,    # (n_out*2, n_modes) for modal contribution plots
+        "mode_shapes": r3d,  # (n_out, 2, n_modes) complex
+        "residues_flat": residues,  # (n_out*2, n_modes) for modal contribution plots
         "mode_types": mode_types,
         "output_channels": sel_out_ext,
         "freqs": freqs_full,
@@ -595,9 +590,7 @@ with chart_col:
     stab_results = st.session_state.get("mimo_stability_table")
     modal_res = st.session_state.get("mimo_modal_results")
 
-    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(
-        ["CMIF", "Stability Diagram", "Mode Shapes", "Export"]
-    )
+    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Export"])
 
     # ── CMIF ──────────────────────────────────────────────────────────────────
     with tab_cmif:
@@ -641,15 +634,15 @@ with chart_col:
             st.info("Click **Build Stability Diagram** to run the analysis.")
         else:
             _style = {
-                "new":        dict(color="lightgrey", symbol="circle-open", size=6),
-                "stable_f":   dict(color="#1f77b4",   symbol="cross",        size=7),
-                "stable_fd":  dict(color="#ff7f0e",   symbol="x",            size=7),
-                "stable_all": dict(color="#2ca02c",   symbol="star",         size=9),
+                "new": dict(color="lightgrey", symbol="circle-open", size=6),
+                "stable_f": dict(color="#1f77b4", symbol="cross", size=7),
+                "stable_fd": dict(color="#ff7f0e", symbol="x", size=7),
+                "stable_all": dict(color="#2ca02c", symbol="star", size=9),
             }
             _label = {
-                "new":        "New (o)",
-                "stable_f":   "Freq stable (f)",
-                "stable_fd":  "Freq+Damp stable (d)",
+                "new": "New (o)",
+                "stable_f": "Freq stable (f)",
+                "stable_fd": "Freq+Damp stable (d)",
                 "stable_all": "Fully stable (s)",
             }
 
@@ -707,11 +700,11 @@ with chart_col:
             fn_fit = modal_res["fn"]
             xi_fit = modal_res["xi"]
             poles_fit = modal_res["poles"]
-            r3d = modal_res["mode_shapes"]          # (n_out, 2, n_modes)
+            r3d = modal_res["mode_shapes"]  # (n_out, 2, n_modes)
             residues_flat = modal_res["residues_flat"]  # (n_out*2, n_modes)
-            H_meas = modal_res["H_measured"]         # (n_freqs, n_out*2)
-            H_syn_res = modal_res["H_synthesis"]     # (n_freqs, n_out*2)
-            nmse = modal_res["nmse"]                 # (n_out*2,)
+            H_meas = modal_res["H_measured"]  # (n_freqs, n_out*2)
+            H_syn_res = modal_res["H_synthesis"]  # (n_freqs, n_out*2)
+            nmse = modal_res["nmse"]  # (n_out*2,)
             out_chs = modal_res["output_channels"]
             mode_types = modal_res["mode_types"]
             n_modes_fit = len(fn_fit)
@@ -729,20 +722,14 @@ with chart_col:
                 for o, ch in enumerate(out_chs):
                     for ri, rl in enumerate(["A", "B"]):
                         row_d[f"|φ| {rl}·{ch}"] = round(float(np.abs(r3d[o, ri, m])), 6)
-                        row_d[f"∠φ {rl}·{ch} (°)"] = round(
-                            float(np.degrees(np.angle(r3d[o, ri, m]))), 2
-                        )
+                        row_d[f"∠φ {rl}·{ch} (°)"] = round(float(np.degrees(np.angle(r3d[o, ri, m]))), 2)
                 summary_rows.append(row_d)
             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
             # Per-channel plot selector
             default_plot = out_chs[: min(4, len(out_chs))]
-            plot_chs = st.multiselect(
-                "Channels to plot", options=out_chs, default=default_plot, key="mimo_plot_chs"
-            )
-            show_modal = st.checkbox(
-                "Show individual modal contributions", value=False, key="mimo_show_modal"
-            )
+            plot_chs = st.multiselect("Channels to plot", options=out_chs, default=default_plot, key="mimo_plot_chs")
+            show_modal = st.checkbox("Show individual modal contributions", value=False, key="mimo_show_modal")
 
             if not plot_chs:
                 st.info("Select channels to plot.")
@@ -866,9 +853,7 @@ with chart_col:
                         nmse_val = float(nmse[col_idx]) if col_idx < len(nmse) else float("nan")
                         ann_idx = pi * 4 + ri * 2
                         if ann_idx < len(fig.layout.annotations):
-                            fig.layout.annotations[ann_idx].text += (
-                                f"   NMSE = {nmse_val:.1f} dB"
-                            )
+                            fig.layout.annotations[ann_idx].text += f"   NMSE = {nmse_val:.1f} dB"
 
                 fig.update_layout(
                     height=220 * n_rows_fig,
@@ -894,8 +879,22 @@ with chart_col:
                 )
                 nmse_rows = []
                 for o, ch in enumerate(out_chs):
-                    nmse_rows.append({"Channel": ch, "Run": "A", "NMSE (dB)": round(float(nmse[o]), 2), "Quality": _nmse_quality(float(nmse[o]))})
-                    nmse_rows.append({"Channel": ch, "Run": "B", "NMSE (dB)": round(float(nmse[n_out_fit + o]), 2), "Quality": _nmse_quality(float(nmse[n_out_fit + o]))})
+                    nmse_rows.append(
+                        {
+                            "Channel": ch,
+                            "Run": "A",
+                            "NMSE (dB)": round(float(nmse[o]), 2),
+                            "Quality": _nmse_quality(float(nmse[o])),
+                        }
+                    )
+                    nmse_rows.append(
+                        {
+                            "Channel": ch,
+                            "Run": "B",
+                            "NMSE (dB)": round(float(nmse[n_out_fit + o]), 2),
+                            "Quality": _nmse_quality(float(nmse[n_out_fit + o])),
+                        }
+                    )
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
 
     # ── Export ────────────────────────────────────────────────────────────────
@@ -920,9 +919,7 @@ with chart_col:
                 for o, ch in enumerate(out_chs):
                     for ri, rl in enumerate(["A", "B"]):
                         row_e[f"phi_amp_{rl}_{ch}"] = float(np.abs(r3d[o, ri, m]))
-                        row_e[f"phi_phase_deg_{rl}_{ch}"] = float(
-                            np.degrees(np.angle(r3d[o, ri, m]))
-                        )
+                        row_e[f"phi_phase_deg_{rl}_{ch}"] = float(np.degrees(np.angle(r3d[o, ri, m])))
                 rows.append(row_e)
 
             export_df = pd.DataFrame(rows)

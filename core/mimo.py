@@ -52,12 +52,20 @@ def compute_mimo_frfs(
         noverlap = int(nperseg * ovlp_pct / 100)
         for ch in sel_outputs:
             res_a = compute_welch_quantities(
-                run_a_proc[input_a].values, run_a_proc[ch].values,
-                fs, nperseg, noverlap, welch_win,
+                run_a_proc[input_a].values,
+                run_a_proc[ch].values,
+                fs,
+                nperseg,
+                noverlap,
+                welch_win,
             )
             res_b = compute_welch_quantities(
-                run_b_proc[input_b].values, run_b_proc[ch].values,
-                fs, nperseg, noverlap, welch_win,
+                run_b_proc[input_b].values,
+                run_b_proc[ch].values,
+                fs,
+                nperseg,
+                noverlap,
+                welch_win,
             )
             H_A_cols.append(res_a[frf_est])
             H_B_cols.append(res_b[frf_est])

@@ -33,7 +33,7 @@ if csv_upload is not None:
         xi = csv_df["xi_pct"].to_numpy() / 100.0
         n_modes = len(fn)
         if is_mimo:
-            channels = [c[len("phi_amp_A_"):] for c in csv_df.columns if c.startswith("phi_amp_A_")]
+            channels = [c[len("phi_amp_A_") :] for c in csv_df.columns if c.startswith("phi_amp_A_")]
             n_out = len(channels)
             ms = np.zeros((n_out, 2, n_modes), dtype=complex)
             for i, ch in enumerate(channels):
@@ -43,13 +43,17 @@ if csv_upload is not None:
                     ms[i, run_idx] = amp * np.exp(1j * phase_rad)
             mode_types = csv_df["type"].tolist() if "type" in csv_df.columns else ["?"] * n_modes
             st.session_state["mimo_modal_results"] = {
-                "fn": fn, "xi": xi, "mode_shapes": ms,
-                "output_channels": channels, "mode_types": mode_types,
+                "fn": fn,
+                "xi": xi,
+                "mode_shapes": ms,
+                "output_channels": channels,
+                "mode_types": mode_types,
             }
             st.success(f"Loaded MIMO results: {n_modes} modes, {n_out} channels.")
         else:
             channels = [
-                c[len("phi_amp_"):] for c in csv_df.columns
+                c[len("phi_amp_") :]
+                for c in csv_df.columns
                 if c.startswith("phi_amp_") and not c.startswith("phi_amp_A_") and not c.startswith("phi_amp_B_")
             ]
             n_out = len(channels)
@@ -59,7 +63,9 @@ if csv_upload is not None:
                 phase_rad = np.deg2rad(csv_df[f"phi_phase_deg_{ch}"].to_numpy())
                 ms[i] = amp * np.exp(1j * phase_rad)
             st.session_state["modal_results"] = {
-                "fn": fn, "xi": xi, "mode_shapes": ms,
+                "fn": fn,
+                "xi": xi,
+                "mode_shapes": ms,
                 "output_channels": channels,
             }
             st.success(f"Loaded SIMO results: {n_modes} modes, {n_out} channels.")
@@ -82,7 +88,8 @@ else:
     st.session_state["mac_exp_source"] = exp_source
 
 exp_results = (
-    st.session_state.get("mimo_modal_results", {}) if "MIMO" in exp_source
+    st.session_state.get("mimo_modal_results", {})
+    if "MIMO" in exp_source
     else st.session_state.get("modal_results", {})
 )
 
@@ -121,17 +128,13 @@ n_fe_modes = len(f06_data["frequencies_hz"])
 st.metric("FE modes", n_fe_modes)
 if n_fe_modes > 0:
     st.caption(
-        f"Modes: {', '.join(f'{f:.4g} Hz' for f in f06_data['frequencies_hz'][:6])}"
-        + (" …" if n_fe_modes > 6 else "")
+        f"Modes: {', '.join(f'{f:.4g} Hz' for f in f06_data['frequencies_hz'][:6])}" + (" …" if n_fe_modes > 6 else "")
     )
 
 # ── Section C: Channel-to-DOF mapping ────────────────────────────────────────
 
 st.header("C — Channel-to-DOF Mapping")
-st.caption(
-    "Map each experimental output channel to the GRID at the sensor location "
-    "and the axis the sensor measures."
-)
+st.caption("Map each experimental output channel to the GRID at the sensor location and the axis the sensor measures.")
 
 grid_ids = sorted({gid for shape in f06_data["mode_shapes"] for gid in shape})
 dof_options = {"X (1)": 0, "Y (2)": 1, "Z (3)": 2}
@@ -145,12 +148,8 @@ mapping: list[tuple[int, int]] = []
 for ch in exp_channels:
     row = st.columns([3, 2, 2])
     row[0].write(ch)
-    gid_sel = row[1].selectbox(
-        "", grid_ids, key=f"mac_gid_{ch}", label_visibility="collapsed"
-    )
-    dof_sel = row[2].selectbox(
-        "", list(dof_options.keys()), index=2, key=f"mac_dof_{ch}", label_visibility="collapsed"
-    )
+    gid_sel = row[1].selectbox("", grid_ids, key=f"mac_gid_{ch}", label_visibility="collapsed")
+    dof_sel = row[2].selectbox("", list(dof_options.keys()), index=2, key=f"mac_dof_{ch}", label_visibility="collapsed")
     mapping.append((gid_sel, dof_options[dof_sel]))
 
 st.session_state["mac_mapping"] = mapping
@@ -195,19 +194,21 @@ if mac_matrix is None:
 mac_fe_freqs: np.ndarray = st.session_state.get("mac_fe_freqs", np.array([]))
 mac_exp_freqs: np.ndarray = st.session_state.get("mac_exp_freqs", np.array([]))
 
-exp_labels = [f"Mode {i+1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_exp_freqs)]
-fe_labels  = [f"Mode {i+1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_fe_freqs)]
+exp_labels = [f"Mode {i + 1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_exp_freqs)]
+fe_labels = [f"Mode {i + 1}  —  {fn:.4g} Hz" for i, fn in enumerate(mac_fe_freqs)]
 
-fig = go.Figure(go.Heatmap(
-    z=mac_matrix,
-    x=exp_labels,
-    y=fe_labels,
-    zmin=0.0,
-    zmax=1.0,
-    colorscale=[[0.0, "darkblue"], [0.5, "green"], [1.0, "red"]],
-    text=[[f"{v:.2f}" for v in row] for row in mac_matrix],
-    texttemplate="%{text}",
-))
+fig = go.Figure(
+    go.Heatmap(
+        z=mac_matrix,
+        x=exp_labels,
+        y=fe_labels,
+        zmin=0.0,
+        zmax=1.0,
+        colorscale=[[0.0, "darkblue"], [0.5, "green"], [1.0, "red"]],
+        text=[[f"{v:.2f}" for v in row] for row in mac_matrix],
+        texttemplate="%{text}",
+    )
+)
 fig.update_layout(
     xaxis_title="Experimental Mode (Hz)",
     yaxis_title="Analytical Mode (Hz)",
@@ -225,15 +226,17 @@ for fe_idx, fe_f in enumerate(mac_fe_freqs):
     exp_f = float(mac_exp_freqs[best_exp_idx])
     delta_f = exp_f - fe_f
     delta_pct = delta_f / fe_f * 100.0 if fe_f != 0 else float("nan")
-    rows.append({
-        "FE Mode": fe_idx + 1,
-        "FE Freq (Hz)": round(fe_f, 4),
-        "Exp Mode": best_exp_idx + 1,
-        "Exp Freq (Hz)": round(exp_f, 4),
-        "Δf (Hz)": round(delta_f, 4),
-        "Δf (%)": round(delta_pct, 1),
-        "MAC": round(float(mac_matrix[fe_idx, best_exp_idx]), 3),
-    })
+    rows.append(
+        {
+            "FE Mode": fe_idx + 1,
+            "FE Freq (Hz)": round(fe_f, 4),
+            "Exp Mode": best_exp_idx + 1,
+            "Exp Freq (Hz)": round(exp_f, 4),
+            "Δf (Hz)": round(delta_f, 4),
+            "Δf (%)": round(delta_pct, 1),
+            "MAC": round(float(mac_matrix[fe_idx, best_exp_idx]), 3),
+        }
+    )
 
 df_table = pd.DataFrame(rows)
 st.dataframe(df_table, use_container_width=True)

@@ -42,7 +42,7 @@ def test_load_csv_error_on_single_row():
 
 
 def test_compute_sample_rate_accuracy():
-    t = np.linspace(0.0, 1.0, 1001)   # 1000 equal intervals → 1000 Hz
+    t = np.linspace(0.0, 1.0, 1001)  # 1000 equal intervals → 1000 Hz
     fs = compute_sample_rate(t)
     assert abs(fs - 1000.0) < 0.01
 

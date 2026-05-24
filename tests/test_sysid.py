@@ -20,6 +20,7 @@ from core.sysid import (
 # compute_cmif
 # ---------------------------------------------------------------------------
 
+
 def test_compute_cmif_shape(sdof_frf):
     freqs, H, fn, xi = sdof_frf
     cmif = compute_cmif(H)
@@ -36,10 +37,11 @@ def test_compute_cmif_1d_input():
 # deduplicate_stable_poles
 # ---------------------------------------------------------------------------
 
+
 def test_deduplicate_stable_poles_removes_duplicates():
     row = {
         "order": 4,
-        "fn": np.array([10.0, 10.05]),   # 0.5 % apart — within default 1 % tol
+        "fn": np.array([10.0, 10.05]),  # 0.5 % apart — within default 1 % tol
         "xi": np.array([0.03, 0.031]),
         "stability": ["stable_all", "stable_all"],
     }
@@ -63,7 +65,7 @@ def test_deduplicate_stable_poles_ignores_non_stable():
         "order": 4,
         "fn": np.array([10.0, 12.0]),
         "xi": np.array([0.03, 0.03]),
-        "stability": ["stable_f", "new"],   # neither is stable_all
+        "stability": ["stable_f", "new"],  # neither is stable_all
     }
     result = deduplicate_stable_poles([row])
     assert len(result) == 0
@@ -72,6 +74,7 @@ def test_deduplicate_stable_poles_ignores_non_stable():
 # ---------------------------------------------------------------------------
 # poles_from_estimates
 # ---------------------------------------------------------------------------
+
 
 def test_poles_from_estimates_basic():
     fn = np.array([10.0])
@@ -88,12 +91,13 @@ def test_poles_from_estimates_negative_damping():
     poles = poles_from_estimates(fn, xi)
     assert len(poles) == 1
     assert np.all(np.isfinite(poles))
-    assert poles[0].imag > 0   # still has positive imaginary part
+    assert poles[0].imag > 0  # still has positive imaginary part
 
 
 # ---------------------------------------------------------------------------
 # plscf / build_stability_table — SDOF recovery
 # ---------------------------------------------------------------------------
+
 
 def test_plscf_recovers_sdof_frequency(sdof_frf):
     freqs, H, fn_true, xi_true = sdof_frf
@@ -122,6 +126,7 @@ def test_build_stability_table_empty_frf():
 # ERA — SDOF recovery
 # ---------------------------------------------------------------------------
 
+
 def test_era_recovers_sdof_frequency(sdof_frf):
     freqs, H, fn_true, xi_true = sdof_frf
     fs = 2.0 * freqs[-1]
@@ -137,6 +142,7 @@ def test_era_recovers_sdof_frequency(sdof_frf):
 # ---------------------------------------------------------------------------
 # extract_residues / synthesize_frf / modal_fit_nmse — round-trip
 # ---------------------------------------------------------------------------
+
 
 def test_extract_synthesize_roundtrip(sdof_frf):
     freqs, H, fn_true, xi_true = sdof_frf
@@ -158,6 +164,7 @@ def test_modal_fit_nmse_perfect_fit(sdof_frf):
 # ---------------------------------------------------------------------------
 # fdd_svd
 # ---------------------------------------------------------------------------
+
 
 def test_fdd_svd_shape():
     rng = np.random.default_rng(0)
@@ -181,6 +188,7 @@ def test_fdd_svd_nonnegative_singular_values():
 # ---------------------------------------------------------------------------
 # fdd_damping — known bandwidth
 # ---------------------------------------------------------------------------
+
 
 def test_fdd_damping_known_bandwidth():
     fn, xi_expected = 10.0, 0.03
@@ -210,10 +218,7 @@ def test_build_stability_warns_underdetermined():
     H = np.ones((20, 1), dtype=complex)
 
     # 15 fake poles → n_freqs=20 < 2*15=30 → extract_residues warns
-    fake_poles = np.array([
-        -0.02 * 2 * np.pi * fn + 1j * 2 * np.pi * fn
-        for fn in np.linspace(5.0, 90.0, 15)
-    ])
+    fake_poles = np.array([-0.02 * 2 * np.pi * fn + 1j * 2 * np.pi * fn for fn in np.linspace(5.0, 90.0, 15)])
     with patch("core.sysid.plscf_poles", return_value=fake_poles):
         with _w.catch_warnings(record=True) as caught:
             _w.simplefilter("always")
@@ -224,6 +229,7 @@ def test_build_stability_warns_underdetermined():
 # ---------------------------------------------------------------------------
 # compute_mac
 # ---------------------------------------------------------------------------
+
 
 def test_compute_mac_identity():
     phi = np.array([[1.0], [2.0], [3.0]])

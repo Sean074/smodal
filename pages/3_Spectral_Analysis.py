@@ -38,15 +38,12 @@ selected_outputs: list = []
 welch_params: dict = {}
 
 with ctrl_col:
-    method = st.radio(
-        "Method", ["Single FFT", "Welch"], horizontal=True, key="sa_method"
-    )
+    method = st.radio("Method", ["Single FFT", "Welch"], horizontal=True, key="sa_method")
 
     if method == "Single FFT":
         if fft_res is None:
             st.warning(
-                "No FFT results available. Go to the **FFT** page, select channels, "
-                "and click **Compute & Save FFT**."
+                "No FFT results available. Go to the **FFT** page, select channels, and click **Compute & Save FFT**."
             )
         elif fft_res.get("method") != "single_fft":
             st.warning(
@@ -92,21 +89,12 @@ with ctrl_col:
                     default=available_outputs_w,
                     key="sa_outputs_w",
                 )
-                n_segs = st.select_slider(
-                    "Segments", options=[4, 8, 16, 32, 64], value=8, key="sa_n_segs"
-                )
-                overlap_pct = st.select_slider(
-                    "Overlap (%)", options=[0, 25, 50, 75], value=50, key="sa_overlap"
-                )
-                welch_win = st.selectbox(
-                    "Window", ["hann", "flattop", "boxcar"], key="sa_welch_win"
-                )
+                n_segs = st.select_slider("Segments", options=[4, 8, 16, 32, 64], value=8, key="sa_n_segs")
+                overlap_pct = st.select_slider("Overlap (%)", options=[0, 25, 50, 75], value=50, key="sa_overlap")
+                welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"], key="sa_welch_win")
                 nperseg = max(16, len(src_df) // n_segs)
                 noverlap = int(nperseg * overlap_pct / 100)
-                st.caption(
-                    f"Δf ≈ {sample_rate / nperseg:.3f} Hz  "
-                    f"({nperseg} samples/segment)"
-                )
+                st.caption(f"Δf ≈ {sample_rate / nperseg:.3f} Hz  ({nperseg} samples/segment)")
                 welch_params = {
                     "n_segs": n_segs,
                     "overlap_pct": overlap_pct,
@@ -115,15 +103,11 @@ with ctrl_col:
                     "noverlap": noverlap,
                 }
 
-    compute_btn = st.button(
-        "Compute", type="primary", use_container_width=True, key="sa_compute"
-    )
+    compute_btn = st.button("Compute", type="primary", use_container_width=True, key="sa_compute")
 
     cached = st.session_state.get("spectral_results")
     if cached:
-        st.caption(
-            f"Showing results for: {', '.join(cached.get('params', {}).get('output_channels', []))}"
-        )
+        st.caption(f"Showing results for: {', '.join(cached.get('params', {}).get('output_channels', []))}")
 
 # ── Computation ───────────────────────────────────────────────────────────────
 if compute_btn:
@@ -168,7 +152,9 @@ if compute_btn:
             for ch in selected_outputs:
                 y = src_df[ch].values.astype(float)
                 result = compute_welch_quantities(
-                    x, y, sample_rate,
+                    x,
+                    y,
+                    sample_rate,
                     welch_params["nperseg"],
                     welch_params["noverlap"],
                     welch_params["window"],
@@ -214,9 +200,7 @@ with chart_col:
     mask = (freqs >= f_min) & (freqs <= f_max)
     f_plot = freqs[mask]
 
-    tab_ap, tab_psd, tab_cp, tab_frf, tab_coh = st.tabs(
-        ["Auto-Power", "PSD", "Cross-Power", "FRF", "Coherence"]
-    )
+    tab_ap, tab_psd, tab_cp, tab_frf, tab_coh = st.tabs(["Auto-Power", "PSD", "Cross-Power", "FRF", "Coherence"])
 
     eps = np.finfo(float).tiny
     n_out = len(plot_chs)
@@ -229,7 +213,8 @@ with chart_col:
         n_rows = 1 + n_out
         titles = [f"Gxx — {input_channel}"] + [f"Gyy — {ch}" for ch in plot_chs]
         fig = make_subplots(
-            rows=n_rows, cols=1,
+            rows=n_rows,
+            cols=1,
             shared_xaxes=True,
             vertical_spacing=0.04,
             subplot_titles=titles,
@@ -238,19 +223,18 @@ with chart_col:
         Gxx = ch_data[plot_chs[0]]["Gxx"]
         Gxx_dB = 10 * np.log10(np.maximum(Gxx[mask], eps))
         fig.add_trace(
-            go.Scatter(x=f_plot, y=Gxx_dB, mode="lines",
-                       name=input_channel,
-                       line=dict(color="#1f77b4", width=1.5)),
-            row=1, col=1,
+            go.Scatter(x=f_plot, y=Gxx_dB, mode="lines", name=input_channel, line=dict(color="#1f77b4", width=1.5)),
+            row=1,
+            col=1,
         )
         fig.update_yaxes(title_text="PSD (dB)", row=1, col=1)
 
         for i, ch in enumerate(plot_chs, start=1):
             Gyy_dB = 10 * np.log10(np.maximum(ch_data[ch]["Gyy"][mask], eps))
             fig.add_trace(
-                go.Scatter(x=f_plot, y=Gyy_dB, mode="lines",
-                           name=ch, line=dict(color=_color(i), width=1.5)),
-                row=i + 1, col=1,
+                go.Scatter(x=f_plot, y=Gyy_dB, mode="lines", name=ch, line=dict(color=_color(i), width=1.5)),
+                row=i + 1,
+                col=1,
             )
             fig.update_yaxes(title_text="PSD (dB)", row=i + 1, col=1)
 
@@ -287,7 +271,7 @@ with chart_col:
                 _win_arr = get_window(("exponential", None, 1.0 / 8.686), N)
             else:
                 _win_arr = get_window(scipy_win, N)
-            W2 = float(np.sum(_win_arr ** 2))
+            W2 = float(np.sum(_win_arr**2))
             norm = 2 * sample_rate * W2
             Sxx = ch_data[plot_chs[0]]["Gxx"] / norm
             Syy_dict = {ch: ch_data[ch]["Gyy"] / norm for ch in plot_chs}
@@ -296,11 +280,10 @@ with chart_col:
         df_str = f"  Δf = {delta_f:.4f} Hz"
 
         n_rows_psd = 1 + n_out
-        psd_titles = [f"Sxx — {input_channel}{df_str}"] + [
-            f"Syy — {ch}{df_str}" for ch in plot_chs
-        ]
+        psd_titles = [f"Sxx — {input_channel}{df_str}"] + [f"Syy — {ch}{df_str}" for ch in plot_chs]
         fig = make_subplots(
-            rows=n_rows_psd, cols=1,
+            rows=n_rows_psd,
+            cols=1,
             shared_xaxes=True,
             vertical_spacing=0.04,
             subplot_titles=psd_titles,
@@ -310,18 +293,21 @@ with chart_col:
             return 10 * np.log10(np.maximum(arr, eps)) if psd_log else arr
 
         fig.add_trace(
-            go.Scatter(x=f_plot, y=_psd_y(Sxx[mask]), mode="lines",
-                       name=input_channel,
-                       line=dict(color="#1f77b4", width=1.5)),
-            row=1, col=1,
+            go.Scatter(
+                x=f_plot, y=_psd_y(Sxx[mask]), mode="lines", name=input_channel, line=dict(color="#1f77b4", width=1.5)
+            ),
+            row=1,
+            col=1,
         )
         fig.update_yaxes(title_text=y_label, row=1, col=1)
 
         for i, ch in enumerate(plot_chs, start=1):
             fig.add_trace(
-                go.Scatter(x=f_plot, y=_psd_y(Syy_dict[ch][mask]), mode="lines",
-                           name=ch, line=dict(color=_color(i), width=1.5)),
-                row=i + 1, col=1,
+                go.Scatter(
+                    x=f_plot, y=_psd_y(Syy_dict[ch][mask]), mode="lines", name=ch, line=dict(color=_color(i), width=1.5)
+                ),
+                row=i + 1,
+                col=1,
             )
             fig.update_yaxes(title_text=y_label, row=i + 1, col=1)
 
@@ -341,7 +327,8 @@ with chart_col:
             titles += [f"|Gxy| — {ch} (dB)", f"∠Gxy — {ch} (°)"]
 
         fig = make_subplots(
-            rows=n_rows, cols=1,
+            rows=n_rows,
+            cols=1,
             shared_xaxes=True,
             vertical_spacing=0.04,
             subplot_titles=titles,
@@ -357,15 +344,16 @@ with chart_col:
             Gxy_ph = np.degrees(np.angle(Gxy))
 
             fig.add_trace(
-                go.Scatter(x=f_plot, y=Gxy_dB, mode="lines",
-                           name=ch, line=dict(color=color, width=1.5)),
-                row=row_mag, col=1,
+                go.Scatter(x=f_plot, y=Gxy_dB, mode="lines", name=ch, line=dict(color=color, width=1.5)),
+                row=row_mag,
+                col=1,
             )
             fig.add_trace(
-                go.Scatter(x=f_plot, y=Gxy_ph, mode="lines",
-                           name=ch, line=dict(color=color, width=1.5),
-                           showlegend=False),
-                row=row_ph, col=1,
+                go.Scatter(
+                    x=f_plot, y=Gxy_ph, mode="lines", name=ch, line=dict(color=color, width=1.5), showlegend=False
+                ),
+                row=row_ph,
+                col=1,
             )
             fig.update_yaxes(title_text="|Gxy| (dB)", row=row_mag, col=1)
             fig.update_yaxes(title_text="Phase (°)", row=row_ph, col=1)
@@ -393,7 +381,8 @@ with chart_col:
             titles += [f"|H| — {ch} (dB)", f"∠H — {ch} (°)"]
 
         fig = make_subplots(
-            rows=n_rows, cols=1,
+            rows=n_rows,
+            cols=1,
             shared_xaxes=True,
             vertical_spacing=0.04,
             subplot_titles=titles,
@@ -419,23 +408,29 @@ with chart_col:
 
                 fig.add_trace(
                     go.Scatter(
-                        x=f_plot, y=H_dB, mode="lines",
+                        x=f_plot,
+                        y=H_dB,
+                        mode="lines",
                         name=leg_name,
                         legendgroup=est if estimator == "All" else ch,
                         line=dict(color=color, width=1.5, **_est_styles[est]),
                         showlegend=(i == 1),
                     ),
-                    row=row_mag, col=1,
+                    row=row_mag,
+                    col=1,
                 )
                 fig.add_trace(
                     go.Scatter(
-                        x=f_plot, y=H_ph, mode="lines",
+                        x=f_plot,
+                        y=H_ph,
+                        mode="lines",
                         name=leg_name,
                         legendgroup=est if estimator == "All" else ch,
                         line=dict(color=color, width=1.5, **_est_styles[est]),
                         showlegend=False,
                     ),
-                    row=row_ph, col=1,
+                    row=row_ph,
+                    col=1,
                 )
 
             fig.update_yaxes(title_text="|H| (dB)", row=row_mag, col=1)
@@ -453,7 +448,8 @@ with chart_col:
     with tab_coh:
         titles = [f"γ² — {ch}" for ch in plot_chs]
         fig = make_subplots(
-            rows=n_out, cols=1,
+            rows=n_out,
+            cols=1,
             shared_xaxes=True,
             vertical_spacing=0.04,
             subplot_titles=titles,
@@ -462,15 +458,22 @@ with chart_col:
         for i, ch in enumerate(plot_chs, start=1):
             gamma2 = ch_data[ch]["gamma2"][mask]
             fig.add_trace(
-                go.Scatter(x=f_plot, y=gamma2, mode="lines",
-                           name=ch, line=dict(color=_color(i), width=1.5),
-                           showlegend=(n_out > 1)),
-                row=i, col=1,
+                go.Scatter(
+                    x=f_plot,
+                    y=gamma2,
+                    mode="lines",
+                    name=ch,
+                    line=dict(color=_color(i), width=1.5),
+                    showlegend=(n_out > 1),
+                ),
+                row=i,
+                col=1,
             )
             fig.add_hline(
                 y=0.85,
                 line=dict(color="gray", dash="dash", width=1),
-                row=i, col=1,
+                row=i,
+                col=1,
             )
             fig.update_yaxes(title_text="γ²", range=[0, 1.05], row=i, col=1)
 

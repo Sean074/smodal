@@ -21,11 +21,13 @@ def deduplicate_stable_poles(stab_results: list[dict], tol: float = 0.01) -> lis
     for row in stab_results:
         for k, s in enumerate(row["stability"]):
             if s == "stable_all":
-                green_poles.append({
-                    "fn_hz": float(row["fn"][k]),
-                    "xi_pct": float(row["xi"][k]) * 100.0,
-                    "source": f"order {row['order']}",
-                })
+                green_poles.append(
+                    {
+                        "fn_hz": float(row["fn"][k]),
+                        "xi_pct": float(row["xi"][k]) * 100.0,
+                        "source": f"order {row['order']}",
+                    }
+                )
     deduped: list[dict] = []
     for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
         if not deduped or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > tol:
@@ -104,7 +106,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     A_mat = np.zeros((n_rows, n_cols))
 
     for o in range(n_out):
-        row_r = slice(o * n_freqs, (o + 1) * n_freqs)               # real block rows
+        row_r = slice(o * n_freqs, (o + 1) * n_freqs)  # real block rows
         row_i = slice((n_out + o) * n_freqs, (n_out + o + 1) * n_freqs)  # imag block rows
         num_cols = slice(o * (n_order + 1), (o + 1) * (n_order + 1))
 
@@ -113,7 +115,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
         A_mat[row_i, num_cols] = Z.imag
 
         # Denominator block: -H_o * Z[:,1..n_order]  (alpha_0=1 → rhs contribution)
-        HZ = H[:, o:o+1] * Z[:, 1:]  # (n_freqs, n_order)
+        HZ = H[:, o : o + 1] * Z[:, 1:]  # (n_freqs, n_order)
         A_mat[row_r, n_num_cols:] = -HZ.real
         A_mat[row_i, n_num_cols:] = -HZ.imag
 
@@ -121,8 +123,8 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     rhs = np.zeros(n_rows)
     for o in range(n_out):
         HZ0 = H[:, o] * Z[:, 0]
-        rhs[o * n_freqs:(o + 1) * n_freqs] = HZ0.real
-        rhs[(n_out + o) * n_freqs:(n_out + o + 1) * n_freqs] = HZ0.imag
+        rhs[o * n_freqs : (o + 1) * n_freqs] = HZ0.real
+        rhs[(n_out + o) * n_freqs : (n_out + o + 1) * n_freqs] = HZ0.imag
 
     sol, *_ = np.linalg.lstsq(A_mat, rhs, rcond=None)
     alpha = np.concatenate([[1.0], sol[n_num_cols:]])  # monic: alpha_0 = 1
@@ -137,9 +139,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     return s_poles[mask]
 
 
-def era_poles(
-    H: np.ndarray, freqs: np.ndarray, n_order: int, fs: float
-) -> tuple[np.ndarray, np.ndarray]:
+def era_poles(H: np.ndarray, freqs: np.ndarray, n_order: int, fs: float) -> tuple[np.ndarray, np.ndarray]:
     """
     ERA for one model order.
     H: (n_freqs, n_outputs) complex — H1 FRF matrix
@@ -171,7 +171,7 @@ def era_poles(
             for j in range(s):
                 t = i + j + offset
                 if t < n_t:
-                    mat[i * n_out:(i + 1) * n_out, j] = irf_data[t]
+                    mat[i * n_out : (i + 1) * n_out, j] = irf_data[t]
         return mat
 
     H0 = _hankel(irf, 0)
@@ -242,22 +242,36 @@ def build_stability_table(
                             warnings.simplefilter("always")
                             res = extract_residues(H, freqs, poles)
                         mshapes = res.T  # (n_poles, n_out) → transpose for MAC use
-                        _residue_warn_count += sum(
-                            1 for _ww in _w if issubclass(_ww.category, RuntimeWarning)
-                        )
+                        _residue_warn_count += sum(1 for _ww in _w if issubclass(_ww.category, RuntimeWarning))
                     except Exception:
                         mshapes = np.ones((len(poles), H.shape[1]), dtype=complex)
                 else:
                     mshapes = np.zeros((0, H.shape[1]), dtype=complex)
         except Exception:
-            results.append({"order": n, "poles": np.array([]), "fn": np.array([]),
-                            "xi": np.array([]), "stability": [], "mode_shapes": np.zeros((0, H.shape[1]))})
+            results.append(
+                {
+                    "order": n,
+                    "poles": np.array([]),
+                    "fn": np.array([]),
+                    "xi": np.array([]),
+                    "stability": [],
+                    "mode_shapes": np.zeros((0, H.shape[1])),
+                }
+            )
             prev = None
             continue
 
         if len(poles) == 0:
-            results.append({"order": n, "poles": poles, "fn": np.array([]),
-                            "xi": np.array([]), "stability": [], "mode_shapes": mshapes})
+            results.append(
+                {
+                    "order": n,
+                    "poles": poles,
+                    "fn": np.array([]),
+                    "xi": np.array([]),
+                    "stability": [],
+                    "mode_shapes": mshapes,
+                }
+            )
             prev = None
             continue
 
@@ -289,14 +303,16 @@ def build_stability_table(
             else:
                 stability.append("stable_fd")
 
-        results.append({
-            "order": n,
-            "poles": poles,
-            "fn": fn,
-            "xi": xi,
-            "stability": stability,
-            "mode_shapes": mshapes,
-        })
+        results.append(
+            {
+                "order": n,
+                "poles": poles,
+                "fn": fn,
+                "xi": xi,
+                "stability": stability,
+                "mode_shapes": mshapes,
+            }
+        )
         prev = results[-1]
 
     if _residue_warn_count > 0:
@@ -336,9 +352,7 @@ def extract_residues(H: np.ndarray, freqs: np.ndarray, poles: np.ndarray) -> np.
     return residues.T  # (n_out, n_modes)
 
 
-def synthesize_frf(
-    freqs: np.ndarray, poles: np.ndarray, residues: np.ndarray
-) -> np.ndarray:
+def synthesize_frf(freqs: np.ndarray, poles: np.ndarray, residues: np.ndarray) -> np.ndarray:
     """
     Synthesise FRF from poles and residues.
     residues: (n_outputs, n_modes) complex
@@ -378,9 +392,7 @@ def fdd_svd(Syy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return sv, svecs
 
 
-def fdd_damping(
-    sv1: np.ndarray, freqs: np.ndarray, peak_idx: int
-) -> tuple[float, float, float]:
+def fdd_damping(sv1: np.ndarray, freqs: np.ndarray, peak_idx: int) -> tuple[float, float, float]:
     """Half-power bandwidth damping estimate for one FDD peak.
 
     sv1      : (n_freqs,) first singular values (linear scale, not dB)
@@ -433,8 +445,5 @@ def compute_mac(phi_ref: np.ndarray, phi_comp: np.ndarray) -> np.ndarray:
     mac : (n_ref, n_comp) MAC values in [0, 1]
     """
     num = np.abs(phi_ref.conj().T @ phi_comp) ** 2
-    denom = (
-        np.sum(np.abs(phi_ref) ** 2, axis=0)[:, None]
-        * np.sum(np.abs(phi_comp) ** 2, axis=0)[None, :]
-    )
+    denom = np.sum(np.abs(phi_ref) ** 2, axis=0)[:, None] * np.sum(np.abs(phi_comp) ** 2, axis=0)[None, :]
     return num / np.maximum(denom, np.finfo(float).tiny)

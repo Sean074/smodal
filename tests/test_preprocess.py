@@ -19,7 +19,7 @@ def test_build_butter_sos_lowpass():
     t = np.linspace(0, 1, int(fs), endpoint=False)
     sig = np.sin(2 * np.pi * 300 * t)
     out = sosfilt(sos, sig)
-    assert np.std(out) / np.std(sig) < 0.1   # > 20 dB attenuation
+    assert np.std(out) / np.std(sig) < 0.1  # > 20 dB attenuation
 
 
 def test_build_butter_sos_highpass():
@@ -37,8 +37,8 @@ def test_build_butter_sos_bandpass():
     t = np.linspace(0, 1, int(fs), endpoint=False)
     sig_in = np.sin(2 * np.pi * 100 * t)
     sig_out = np.sin(2 * np.pi * 300 * t)
-    assert sosfilt(sos, sig_in).std() > 0.5     # passband passes
-    assert sosfilt(sos, sig_out).std() < 0.1    # stopband attenuated
+    assert sosfilt(sos, sig_in).std() > 0.5  # passband passes
+    assert sosfilt(sos, sig_out).std() < 0.1  # stopband attenuated
 
 
 def test_trim_and_filter_no_filter():

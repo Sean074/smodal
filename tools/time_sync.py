@@ -50,10 +50,7 @@ def trim_to_overlap(
     t_end = min(df["time"].iloc[-1] for df in dfs)
 
     if t_start >= t_end:
-        return None, (
-            f"No overlapping time window found. "
-            f"Latest start: {t_start:.6f} s, earliest end: {t_end:.6f} s."
-        )
+        return None, (f"No overlapping time window found. Latest start: {t_start:.6f} s, earliest end: {t_end:.6f} s.")
 
     trimmed = []
     for df in dfs:

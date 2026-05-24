@@ -13,20 +13,24 @@ ROOT = pathlib.Path(__file__).parent.parent
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_df(fs: float = 1000.0, duration: float = 1.0, t_offset: float = 0.0) -> pd.DataFrame:
     n = int(fs * duration)
     t = np.arange(n) / fs + t_offset
     rng = np.random.default_rng(0)
-    return pd.DataFrame({
-        "time": t,
-        "ch_a": np.sin(2 * np.pi * 10 * t),
-        "ch_b": rng.normal(0, 0.1, n),
-    })
+    return pd.DataFrame(
+        {
+            "time": t,
+            "ch_a": np.sin(2 * np.pi * 10 * t),
+            "ch_b": rng.normal(0, 0.1, n),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # format_converter
 # ---------------------------------------------------------------------------
+
 
 class TestFormatConverter:
     def test_from_delimited_tsv(self, tmp_path):
@@ -115,6 +119,7 @@ class TestFormatConverter:
 # ---------------------------------------------------------------------------
 # channel_math
 # ---------------------------------------------------------------------------
+
 
 class TestChannelMath:
     def test_list_channels(self):
@@ -242,6 +247,7 @@ class TestChannelMathSecurity:
 # downsample
 # ---------------------------------------------------------------------------
 
+
 class TestDownsample:
     def test_decimate_halves_length(self):
         from tools.downsample import downsample
@@ -311,6 +317,7 @@ class TestDownsample:
 # time_sync
 # ---------------------------------------------------------------------------
 
+
 class TestTimeSync:
     def _offset_df(self, t_offset: float, fs: float = 1000.0, duration: float = 1.0) -> pd.DataFrame:
         return _make_df(fs=fs, duration=duration, t_offset=t_offset)
@@ -318,8 +325,8 @@ class TestTimeSync:
     def test_trim_to_overlap_basic(self):
         from tools.time_sync import trim_to_overlap
 
-        df_a = self._offset_df(0.0)    # 0.0 – 0.999 s
-        df_b = self._offset_df(0.3)    # 0.3 – 1.299 s
+        df_a = self._offset_df(0.0)  # 0.0 – 0.999 s
+        df_b = self._offset_df(0.3)  # 0.3 – 1.299 s
 
         trimmed, err = trim_to_overlap([df_a, df_b])
 
@@ -333,8 +340,8 @@ class TestTimeSync:
     def test_trim_to_overlap_no_overlap_error(self):
         from tools.time_sync import trim_to_overlap
 
-        df_a = self._offset_df(0.0, duration=0.5)   # 0.0 – 0.499 s
-        df_b = self._offset_df(1.0)                  # 1.0 – 1.999 s
+        df_a = self._offset_df(0.0, duration=0.5)  # 0.0 – 0.499 s
+        df_b = self._offset_df(1.0)  # 1.0 – 1.999 s
 
         _, err = trim_to_overlap([df_a, df_b])
 

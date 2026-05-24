@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 # Dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Grid:
     gid: int
@@ -48,20 +49,38 @@ class Rbe3:
 
 @dataclass
 class GeomModel:
-    grids: dict   # {gid: Grid}
+    grids: dict  # {gid: Grid}
     plotels: dict  # {eid: Plotel}
-    rbe3s: dict   # {eid: Rbe3}
+    rbe3s: dict  # {eid: Rbe3}
 
 
 # ---------------------------------------------------------------------------
 # BDF field parsing
 # ---------------------------------------------------------------------------
 
-_SILENT_KEYWORDS = frozenset({
-    "BEGIN", "BEGINBULK", "ENDDATA", "SOL", "SUBCASE", "TITLE",
-    "SPC", "SPC1", "FORCE", "MOMENT", "LOAD", "EIGRL",
-    "PBAR", "CBAR", "CBEAM", "CROD", "PROD", "MAT1", "CONM2",
-})
+_SILENT_KEYWORDS = frozenset(
+    {
+        "BEGIN",
+        "BEGINBULK",
+        "ENDDATA",
+        "SOL",
+        "SUBCASE",
+        "TITLE",
+        "SPC",
+        "SPC1",
+        "FORCE",
+        "MOMENT",
+        "LOAD",
+        "EIGRL",
+        "PBAR",
+        "CBAR",
+        "CBEAM",
+        "CROD",
+        "PROD",
+        "MAT1",
+        "CONM2",
+    }
+)
 
 
 def _split_free(line: str) -> list:
@@ -70,7 +89,7 @@ def _split_free(line: str) -> list:
 
 def _split_fixed(line: str) -> list:
     line = line.ljust(72)
-    return [line[i:i + 8].strip() for i in range(0, 72, 8)]
+    return [line[i : i + 8].strip() for i in range(0, 72, 8)]
 
 
 def _split(line: str) -> list:
@@ -93,6 +112,7 @@ def _is_cont(fields: list) -> bool:
 # ---------------------------------------------------------------------------
 # Card handlers
 # ---------------------------------------------------------------------------
+
 
 def _handle_grid(fields: list, grids: dict) -> None:
     gid = _i(fields[1])
@@ -148,6 +168,7 @@ def _handle_rbe3(fields: list, conts: list, rbe3s: dict) -> None:
 # ---------------------------------------------------------------------------
 # Public parse entry point
 # ---------------------------------------------------------------------------
+
 
 def parse_wireframe_bdf(file_like: IO | str) -> GeomModel:
     """Parse a NASTRAN BDF file and return a GeomModel with GRID, PLOTEL, and RBE3 data.
@@ -319,7 +340,7 @@ def parse_f06(file_like: IO | str) -> dict:
             if m_id:
                 gid = int(m_id.group(1))
                 # Extract all floats after the "G" marker; need T1, T2, T3 (first three)
-                nums = _RE_FLOAT.findall(line[m_id.end():])
+                nums = _RE_FLOAT.findall(line[m_id.end() :])
                 if len(nums) >= 3:
                     current_shape[gid] = np.array([float(nums[0]), float(nums[1]), float(nums[2])])
 
@@ -336,6 +357,7 @@ def parse_f06(file_like: IO | str) -> dict:
 # ---------------------------------------------------------------------------
 # RBE3 displacement interpolation
 # ---------------------------------------------------------------------------
+
 
 def expand_rbe3_displacements(geom: GeomModel, meas_disps: dict) -> dict:
     """Expand measured displacements to all GRIDs via RBE3 weighted averaging.
@@ -377,6 +399,7 @@ def expand_rbe3_displacements(geom: GeomModel, meas_disps: dict) -> dict:
 # Plotly 3D — coordinate helpers
 # ---------------------------------------------------------------------------
 
+
 def _undeformed_coords(geom: GeomModel) -> dict:
     return {gid: (g.x, g.y, g.z) for gid, g in geom.grids.items()}
 
@@ -414,6 +437,7 @@ def _grid_coord_lists(geom: GeomModel, coords: dict) -> tuple:
 # Plotly 3D — trace builders
 # ---------------------------------------------------------------------------
 
+
 def _add_triad(fig: go.Figure, geom: GeomModel) -> None:
     if geom.grids:
         vals = [(g.x, g.y, g.z) for g in geom.grids.values()]
@@ -426,15 +450,19 @@ def _add_triad(fig: go.Figure, geom: GeomModel) -> None:
         ([0.0, 0.0], [0.0, L], [0.0, 0.0], "#33aa33", "Y"),
         ([0.0, 0.0], [0.0, 0.0], [0.0, L], "#3366cc", "Z"),
     ]:
-        fig.add_trace(go.Scatter3d(
-            x=xs, y=ys, z=zs,
-            mode="lines+text",
-            line=dict(color=color, width=3),
-            text=["", label],
-            textfont=dict(color=color, size=12),
-            hoverinfo="skip",
-            showlegend=False,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines+text",
+                line=dict(color=color, width=3),
+                text=["", label],
+                textfont=dict(color=color, size=12),
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
 
 
 _CAMERA_VIEWS: dict = {
@@ -464,6 +492,7 @@ def _apply_layout(fig: go.Figure) -> None:
 # Public figure builders
 # ---------------------------------------------------------------------------
 
+
 def build_static_figure(geom: GeomModel, view: str = "3D") -> go.Figure:
     """Return a Plotly 3D figure of the undeformed wireframe geometry."""
     fig = go.Figure()
@@ -471,12 +500,16 @@ def build_static_figure(geom: GeomModel, view: str = "3D") -> go.Figure:
 
     if geom.plotels:
         xs, ys, zs = _plotel_line_coords(geom, coords)
-        fig.add_trace(go.Scatter3d(
-            x=xs, y=ys, z=zs,
-            mode="lines",
-            line=dict(color="#1f77b4", width=3),
-            name="PLOTEL",
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines",
+                line=dict(color="#1f77b4", width=3),
+                name="PLOTEL",
+            )
+        )
 
     if geom.grids:
         gids = sorted(geom.grids.keys())
@@ -484,23 +517,27 @@ def build_static_figure(geom: GeomModel, view: str = "3D") -> go.Figure:
         gys = [coords[g][1] for g in gids]
         gzs = [coords[g][2] for g in gids]
         customdata = [[gid, coords[gid][0], coords[gid][1], coords[gid][2]] for gid in gids]
-        fig.add_trace(go.Scatter3d(
-            x=gxs, y=gys, z=gzs,
-            mode="markers+text",
-            marker=dict(size=6, color="#333333"),
-            text=[str(g) for g in gids],
-            textposition="top center",
-            textfont=dict(size=9),
-            customdata=customdata,
-            hovertemplate=(
-                "<b>GRID %{customdata[0]}</b><br>"
-                "X: %{customdata[1]:.4g}  "
-                "Y: %{customdata[2]:.4g}  "
-                "Z: %{customdata[3]:.4g}"
-                "<extra></extra>"
-            ),
-            name="GRIDs",
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=gxs,
+                y=gys,
+                z=gzs,
+                mode="markers+text",
+                marker=dict(size=6, color="#333333"),
+                text=[str(g) for g in gids],
+                textposition="top center",
+                textfont=dict(size=9),
+                customdata=customdata,
+                hovertemplate=(
+                    "<b>GRID %{customdata[0]}</b><br>"
+                    "X: %{customdata[1]:.4g}  "
+                    "Y: %{customdata[2]:.4g}  "
+                    "Z: %{customdata[3]:.4g}"
+                    "<extra></extra>"
+                ),
+                name="GRIDs",
+            )
+        )
 
     if geom.rbe3s:
         rxs: list = []
@@ -518,13 +555,17 @@ def build_static_figure(geom: GeomModel, view: str = "3D") -> go.Figure:
                         rys += [ref[1], ind[1], None]
                         rzs += [ref[2], ind[2], None]
         if rxs:
-            fig.add_trace(go.Scatter3d(
-                x=rxs, y=rys, z=rzs,
-                mode="lines",
-                line=dict(color="#cc2222", width=2, dash="dash"),
-                name="RBE3",
-                hoverinfo="skip",
-            ))
+            fig.add_trace(
+                go.Scatter3d(
+                    x=rxs,
+                    y=rys,
+                    z=rzs,
+                    mode="lines",
+                    line=dict(color="#cc2222", width=2, dash="dash"),
+                    name="RBE3",
+                    hoverinfo="skip",
+                )
+            )
 
     _add_triad(fig, geom)
     _apply_layout(fig)
@@ -559,13 +600,17 @@ def build_mode_figure(
     # Ghost undeformed PLOTEL lines
     if geom.plotels:
         xs, ys, zs = _plotel_line_coords(geom, undeformed)
-        fig.add_trace(go.Scatter3d(
-            x=xs, y=ys, z=zs,
-            mode="lines",
-            line=dict(color="#cccccc", width=2),
-            name="Undeformed",
-            opacity=0.5,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines",
+                line=dict(color="#cccccc", width=2),
+                name="Undeformed",
+                opacity=0.5,
+            )
+        )
 
     # Initial animated traces at zero amplitude (trace indices 1 and 2)
     def_0 = _deformed_coords(geom, gid_disps, 0.0)
@@ -577,22 +622,30 @@ def build_mode_figure(
     grid_colors = ["#cc2222" if g in accel_set else "#ff7f0e" for g in gids_sorted]
     grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
 
-    fig.add_trace(go.Scatter3d(
-        x=dxs0, y=dys0, z=dzs0,
-        mode="lines",
-        line=dict(color="#ff7f0e", width=4),
-        name="Mode shape",
-    ))
-    fig.add_trace(go.Scatter3d(
-        x=gxs0, y=gys0, z=gzs0,
-        mode="markers+text" if accel_set else "markers",
-        marker=dict(size=6, color=grid_colors),
-        text=grid_texts,
-        textposition="top center",
-        textfont=dict(size=10, color="#cc2222"),
-        name="Mode GRIDs",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter3d(
+            x=dxs0,
+            y=dys0,
+            z=dzs0,
+            mode="lines",
+            line=dict(color="#ff7f0e", width=4),
+            name="Mode shape",
+        )
+    )
+    fig.add_trace(
+        go.Scatter3d(
+            x=gxs0,
+            y=gys0,
+            z=gzs0,
+            mode="markers+text" if accel_set else "markers",
+            marker=dict(size=6, color=grid_colors),
+            text=grid_texts,
+            textposition="top center",
+            textfont=dict(size=10, color="#cc2222"),
+            name="Mode GRIDs",
+            showlegend=False,
+        )
+    )
 
     _add_triad(fig, geom)
 
@@ -603,38 +656,41 @@ def build_mode_figure(
         def_c = _deformed_coords(geom, gid_disps, amp)
         dxs, dys, dzs = _plotel_line_coords(geom, def_c) if geom.plotels else ([], [], [])
         gxs, gys, gzs = _grid_coord_lists(geom, def_c)
-        frames.append(go.Frame(
-            name=str(frame_i),
-            data=[
-                go.Scatter3d(x=dxs, y=dys, z=dzs),
-                go.Scatter3d(x=gxs, y=gys, z=gzs),
-            ],
-            traces=[1, 2],
-        ))
+        frames.append(
+            go.Frame(
+                name=str(frame_i),
+                data=[
+                    go.Scatter3d(x=dxs, y=dys, z=dzs),
+                    go.Scatter3d(x=gxs, y=gys, z=gzs),
+                ],
+                traces=[1, 2],
+            )
+        )
     fig.frames = frames
 
     fig.update_layout(
         title=f"Mode shape  —  f = {freq_hz:.4g} Hz",
-        updatemenus=[dict(
-            type="buttons",
-            showactive=False,
-            y=0.02,
-            x=0.1,
-            xanchor="right",
-            buttons=[
-                dict(
-                    label="▶",
-                    method="animate",
-                    args=[None, {"frame": {"duration": 50, "redraw": True},
-                                 "fromcurrent": True, "loop": True}],
-                ),
-                dict(
-                    label="⏸",
-                    method="animate",
-                    args=[[None], {"frame": {"duration": 0}, "mode": "immediate"}],
-                ),
-            ],
-        )],
+        updatemenus=[
+            dict(
+                type="buttons",
+                showactive=False,
+                y=0.02,
+                x=0.1,
+                xanchor="right",
+                buttons=[
+                    dict(
+                        label="▶",
+                        method="animate",
+                        args=[None, {"frame": {"duration": 50, "redraw": True}, "fromcurrent": True, "loop": True}],
+                    ),
+                    dict(
+                        label="⏸",
+                        method="animate",
+                        args=[[None], {"frame": {"duration": 0}, "mode": "immediate"}],
+                    ),
+                ],
+            )
+        ],
     )
     _apply_layout(fig)
     _apply_camera(fig, view)
@@ -668,24 +724,32 @@ def build_static_mode_figure(
 
     if geom.plotels:
         xs, ys, zs = _plotel_line_coords(geom, undeformed)
-        fig.add_trace(go.Scatter3d(
-            x=xs, y=ys, z=zs,
-            mode="lines",
-            line=dict(color="#cccccc", width=2),
-            name="Undeformed",
-            opacity=0.5,
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="lines",
+                line=dict(color="#cccccc", width=2),
+                name="Undeformed",
+                opacity=0.5,
+            )
+        )
 
     def_c = _deformed_coords(geom, gid_disps, amplitude)
 
     if geom.plotels:
         dxs, dys, dzs = _plotel_line_coords(geom, def_c)
-        fig.add_trace(go.Scatter3d(
-            x=dxs, y=dys, z=dzs,
-            mode="lines",
-            line=dict(color="#ff7f0e", width=4),
-            name="Mode shape",
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                x=dxs,
+                y=dys,
+                z=dzs,
+                mode="lines",
+                line=dict(color="#ff7f0e", width=4),
+                name="Mode shape",
+            )
+        )
 
     accel_set = accel_gids or set()
     gids_sorted = sorted(geom.grids.keys())
@@ -693,16 +757,20 @@ def build_static_mode_figure(
     grid_texts = [str(g) if g in accel_set else "" for g in gids_sorted]
 
     gxs, gys, gzs = _grid_coord_lists(geom, def_c)
-    fig.add_trace(go.Scatter3d(
-        x=gxs, y=gys, z=gzs,
-        mode="markers+text" if accel_set else "markers",
-        marker=dict(size=6, color=grid_colors),
-        text=grid_texts,
-        textposition="top center",
-        textfont=dict(size=10, color="#cc2222"),
-        name="Mode GRIDs",
-        showlegend=False,
-    ))
+    fig.add_trace(
+        go.Scatter3d(
+            x=gxs,
+            y=gys,
+            z=gzs,
+            mode="markers+text" if accel_set else "markers",
+            marker=dict(size=6, color=grid_colors),
+            text=grid_texts,
+            textposition="top center",
+            textfont=dict(size=10, color="#cc2222"),
+            name="Mode GRIDs",
+            showlegend=False,
+        )
+    )
 
     _add_triad(fig, geom)
     fig.update_layout(title=f"Mode shape  —  f = {freq_hz:.4g} Hz  (φ = {phase_deg:.0f}°)")

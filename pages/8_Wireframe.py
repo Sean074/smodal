@@ -67,6 +67,7 @@ with st.expander("Experimental Setup", expanded=True):
 
         if csv_upload is not None:
             import pandas as pd
+
             try:
                 csv_df = pd.read_csv(csv_upload)
                 is_mimo = any(c.startswith("phi_amp_A_") for c in csv_df.columns)
@@ -74,7 +75,7 @@ with st.expander("Experimental Setup", expanded=True):
                 xi = csv_df["xi_pct"].to_numpy() / 100.0
                 n_modes = len(fn)
                 if is_mimo:
-                    channels = [c[len("phi_amp_A_"):] for c in csv_df.columns if c.startswith("phi_amp_A_")]
+                    channels = [c[len("phi_amp_A_") :] for c in csv_df.columns if c.startswith("phi_amp_A_")]
                     n_out = len(channels)
                     ms = np.zeros((n_out, 2, n_modes), dtype=complex)
                     for i, ch in enumerate(channels):
@@ -84,14 +85,20 @@ with st.expander("Experimental Setup", expanded=True):
                             ms[i, run_idx] = amp * np.exp(1j * phase_rad)
                     mode_types = csv_df["type"].tolist() if "type" in csv_df.columns else ["?"] * n_modes
                     st.session_state["mimo_modal_results"] = {
-                        "fn": fn, "xi": xi, "mode_shapes": ms,
-                        "output_channels": channels, "mode_types": mode_types,
+                        "fn": fn,
+                        "xi": xi,
+                        "mode_shapes": ms,
+                        "output_channels": channels,
+                        "mode_types": mode_types,
                     }
                     st.success(f"Loaded MIMO results: {n_modes} modes, {n_out} channels.")
                 else:
                     channels = [
-                        c[len("phi_amp_"):] for c in csv_df.columns
-                        if c.startswith("phi_amp_") and not c.startswith("phi_amp_A_") and not c.startswith("phi_amp_B_")
+                        c[len("phi_amp_") :]
+                        for c in csv_df.columns
+                        if c.startswith("phi_amp_")
+                        and not c.startswith("phi_amp_A_")
+                        and not c.startswith("phi_amp_B_")
                     ]
                     n_out = len(channels)
                     ms = np.zeros((n_out, n_modes), dtype=complex)
@@ -100,7 +107,9 @@ with st.expander("Experimental Setup", expanded=True):
                         phase_rad = np.deg2rad(csv_df[f"phi_phase_deg_{ch}"].to_numpy())
                         ms[i] = amp * np.exp(1j * phase_rad)
                     st.session_state["modal_results"] = {
-                        "fn": fn, "xi": xi, "mode_shapes": ms,
+                        "fn": fn,
+                        "xi": xi,
+                        "mode_shapes": ms,
                         "output_channels": channels,
                     }
                     st.success(f"Loaded SIMO results: {n_modes} modes, {n_out} channels.")
@@ -118,8 +127,7 @@ with st.expander("Experimental Setup", expanded=True):
                 source = source_options[0]
                 st.caption(f"Using: {source}")
             exp_results = (
-                st.session_state["mimo_modal_results"] if "MIMO" in source
-                else st.session_state["modal_results"]
+                st.session_state["mimo_modal_results"] if "MIMO" in source else st.session_state["modal_results"]
             )
             exp_fn = exp_results["fn"]
             exp_xi = exp_results["xi"]
@@ -240,12 +248,22 @@ exp_phase_offset_deg = 0
 ana_phase_offset_deg = 0
 if has_test_data:
     exp_phase_offset_deg = ctrl4.slider(
-        "Exp phase offset (°)", 0, 360, 0, step=5, key="wf_exp_phase_offset",
+        "Exp phase offset (°)",
+        0,
+        360,
+        0,
+        step=5,
+        key="wf_exp_phase_offset",
         help="Rotate experimental mode shape before display. Re-click 'Show Test' to apply.",
     )
 if has_fe_data:
     ana_phase_offset_deg = ctrl4.slider(
-        "FE phase offset (°)", 0, 360, 0, step=5, key="wf_ana_phase_offset",
+        "FE phase offset (°)",
+        0,
+        360,
+        0,
+        step=5,
+        key="wf_ana_phase_offset",
         help="Rotate analytical mode shape before display. Re-click 'Show Model' to apply.",
     )
 
@@ -287,7 +305,9 @@ if has_fe_data:
             if display_mode == "Animate":
                 fig = build_mode_figure(geom_fe, _gd, freq_hz=_freq, scale=float(scale), n_frames=n_frames, view=view)
             else:
-                fig = build_static_mode_figure(geom_fe, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view)
+                fig = build_static_mode_figure(
+                    geom_fe, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view
+                )
             st.plotly_chart(fig, use_container_width=True)
 
 # --- Test (Experimental) column ---
@@ -298,10 +318,7 @@ with col_test:
     if not has_test_data:
         st.info("Upload a Test BDF and load experimental modal results in Experimental Setup above.")
     else:
-        exp_labels = [
-            f"Mode {i + 1}  —  {exp_fn[i]:.4g} Hz  (ξ = {exp_xi[i] * 100:.2f}%)"
-            for i in range(n_exp_modes)
-        ]
+        exp_labels = [f"Mode {i + 1}  —  {exp_fn[i]:.4g} Hz  (ξ = {exp_xi[i] * 100:.2f}%)" for i in range(n_exp_modes)]
         exp_mode_idx = st.selectbox(
             "Experimental mode", range(n_exp_modes), format_func=lambda i: exp_labels[i], key="wf_exp_mode"
         )
@@ -324,12 +341,7 @@ with col_test:
 
             # Seed any grid referenced as an RBE3 independent node but absent from
             # meas_disps (e.g. fixed root) at zero so linear interpolation honours the BC.
-            rbe3_ind_grids = {
-                gid
-                for rbe3 in geom_test.rbe3s.values()
-                for _wt, _c, gids in rbe3.wt_gc
-                for gid in gids
-            }
+            rbe3_ind_grids = {gid for rbe3 in geom_test.rbe3s.values() for _wt, _c, gids in rbe3.wt_gc for gid in gids}
             for gid in rbe3_ind_grids - meas_disps.keys():
                 meas_disps[gid] = np.zeros(3)
 
@@ -342,7 +354,23 @@ with col_test:
             _freq = st.session_state["wf_test_freq"]
             _accel_gids = {gid for gid, _dof in mapping}
             if display_mode == "Animate":
-                fig = build_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), n_frames=n_frames, view=view, accel_gids=_accel_gids)
+                fig = build_mode_figure(
+                    geom_test,
+                    _gd,
+                    freq_hz=_freq,
+                    scale=float(scale),
+                    n_frames=n_frames,
+                    view=view,
+                    accel_gids=_accel_gids,
+                )
             else:
-                fig = build_static_mode_figure(geom_test, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view, accel_gids=_accel_gids)
+                fig = build_static_mode_figure(
+                    geom_test,
+                    _gd,
+                    freq_hz=_freq,
+                    scale=float(scale),
+                    phase_deg=float(phase_deg),
+                    view=view,
+                    accel_gids=_accel_gids,
+                )
             st.plotly_chart(fig, use_container_width=True)

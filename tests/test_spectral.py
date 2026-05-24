@@ -68,10 +68,10 @@ def test_single_fft_psd_hann_window_normalization():
     Gxx = compute_spectral_quantities(Sx, Sx)["Gxx"]
     scipy_win = WINDOW_SCIPY_NAMES.get("hanning", "boxcar")
     win_arr = get_window(scipy_win, N)
-    W2 = float(np.sum(win_arr ** 2))
+    W2 = float(np.sum(win_arr**2))
     psd = Gxx / (2.0 * fs * W2)
     power_est = float(np.sum(psd) * (fs / N))
-    assert abs(power_est - A ** 2 / 2) / (A ** 2 / 2) < 0.02
+    assert abs(power_est - A**2 / 2) / (A**2 / 2) < 0.02
 
 
 def test_compute_welch_quantities_returns_expected_keys(sine_signal):

@@ -17,7 +17,7 @@ A multi-page Streamlit app for structural dynamics modal analysis and experiment
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Sean074/modal_analysis.git
+git clone https://github.com/Sean074/smodal.git
 cd modal_analysis
 
 # 2. Create and activate a virtual environment
@@ -26,7 +26,7 @@ source .venv/bin/activate        # macOS / Linux
 # .venv\Scripts\activate         # Windows
 
 # 3. Install dependencies
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 ---

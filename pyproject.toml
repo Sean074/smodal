@@ -37,6 +37,9 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["core*"]

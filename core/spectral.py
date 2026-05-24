@@ -8,7 +8,7 @@ WINDOW_SCIPY_NAMES = _WINDOW_SCIPY_NAMES = {
     "uniform": "boxcar",
     "hanning": "hann",
     "flattop": "flattop",
-    "force": "hann",       # force window is typically a short hann; user may trim later
+    "force": "hann",  # force window is typically a short hann; user may trim later
     "exponential": "exponential",
 }
 
@@ -57,7 +57,7 @@ def compute_spectral_quantities(Sx: np.ndarray, Sy: np.ndarray) -> dict:
     eps = np.finfo(float).tiny
     Gxx = np.real(Sx * np.conj(Sx))
     Gyy = np.real(Sy * np.conj(Sy))
-    Gxy = Sy * np.conj(Sx)    # E[X* Y] = G_xy by standard convention
+    Gxy = Sy * np.conj(Sx)  # E[X* Y] = G_xy by standard convention
     Gyx = np.conj(Gxy)
 
     Gxx_safe = np.maximum(Gxx, eps)
@@ -65,19 +65,18 @@ def compute_spectral_quantities(Sx: np.ndarray, Sy: np.ndarray) -> dict:
 
     H1 = Gxy / Gxx_safe
 
-    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
         H2 = Gyy / Gyx_safe
         Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
         Hv = Hv_mag * np.exp(1j * np.angle(H1))
         gamma2 = np.abs(Gxy) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
 
-    H2     = np.where(np.isfinite(H2),     H2,     0.0 + 0j)
+    H2 = np.where(np.isfinite(H2), H2, 0.0 + 0j)
     Hv_mag = np.where(np.isfinite(Hv_mag), Hv_mag, 0.0)
-    Hv     = np.where(np.isfinite(Hv),     Hv,     0.0 + 0j)
+    Hv = np.where(np.isfinite(Hv), Hv, 0.0 + 0j)
     gamma2 = np.where(np.isfinite(gamma2), gamma2, 0.0)
 
-    return dict(Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy,
-                H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
+    return dict(Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy, H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
 
 
 def compute_psd(
@@ -89,6 +88,7 @@ def compute_psd(
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return (freqs_hz, Pxx) auto-power spectral density via Welch averaging."""
     from scipy.signal import welch
+
     return welch(signal, fs=sample_rate, window=window, nperseg=nperseg, noverlap=noverlap)
 
 
@@ -154,7 +154,7 @@ def compute_welch_quantities(
 
     freqs, Gxx = welch(x, **kw)
     _, Gyy = welch(y, **kw)
-    _, Gxy = csd(x, y, **kw)   # scipy csd(x,y) = E[X* Y] = G_xy by standard convention
+    _, Gxy = csd(x, y, **kw)  # scipy csd(x,y) = E[X* Y] = G_xy by standard convention
     Gyx = np.conj(Gxy)
 
     Gxx_safe = np.maximum(Gxx, eps)
@@ -162,16 +162,15 @@ def compute_welch_quantities(
 
     H1 = Gxy / Gxx_safe
 
-    with np.errstate(divide='ignore', over='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
         H2 = Gyy / Gyx_safe
         Hv_mag = np.sqrt(np.abs(H1) * np.abs(H2))
         Hv = Hv_mag * np.exp(1j * np.angle(H1))
         gamma2 = np.abs(Gxy) ** 2 / (Gxx_safe * np.maximum(Gyy, eps))
 
-    H2     = np.where(np.isfinite(H2),     H2,     0.0 + 0j)
+    H2 = np.where(np.isfinite(H2), H2, 0.0 + 0j)
     Hv_mag = np.where(np.isfinite(Hv_mag), Hv_mag, 0.0)
-    Hv     = np.where(np.isfinite(Hv),     Hv,     0.0 + 0j)
+    Hv = np.where(np.isfinite(Hv), Hv, 0.0 + 0j)
     gamma2 = np.where(np.isfinite(gamma2), gamma2, 0.0)
 
-    return dict(freqs=freqs, Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy,
-                H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
+    return dict(freqs=freqs, Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy, H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)

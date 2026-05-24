@@ -19,8 +19,11 @@ def fft_subplot(
     """Stacked magnitude-FFT figure (dB) for the given channels."""
     n_ch = len(channels)
     fig = make_subplots(
-        rows=n_ch, cols=1, shared_xaxes=True,
-        vertical_spacing=0.04, subplot_titles=channels,
+        rows=n_ch,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.04,
+        subplot_titles=channels,
     )
     for i, ch in enumerate(channels):
         if ch not in df_proc.columns:
@@ -29,10 +32,14 @@ def fft_subplot(
         mask = f <= fmax
         fig.add_trace(
             go.Scatter(
-                x=f[mask], y=20 * np.log10(np.maximum(np.abs(F[mask]), _eps)),
-                mode="lines", line=dict(width=1.5), showlegend=False,
+                x=f[mask],
+                y=20 * np.log10(np.maximum(np.abs(F[mask]), _eps)),
+                mode="lines",
+                line=dict(width=1.5),
+                showlegend=False,
             ),
-            row=i + 1, col=1,
+            row=i + 1,
+            col=1,
         )
         fig.update_yaxes(title_text="|FFT| (dB)", row=i + 1, col=1)
         if i == n_ch - 1:
@@ -54,8 +61,11 @@ def frf_subplot(
     for ch in output_chs:
         titles += [f"|H({input_ch}→{ch})| (dB)", f"∠H({input_ch}→{ch}) (°)"]
     fig = make_subplots(
-        rows=n_rows, cols=1, shared_xaxes=True,
-        vertical_spacing=0.04, subplot_titles=titles,
+        rows=n_rows,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.04,
+        subplot_titles=titles,
     )
     f, Sx = compute_fft(df_proc[input_ch].values, fs, "uniform")
     mask = f <= fmax
@@ -67,17 +77,25 @@ def frf_subplot(
         row_m, row_p = i * 2 + 1, i * 2 + 2
         fig.add_trace(
             go.Scatter(
-                x=f[mask], y=20 * np.log10(np.maximum(np.abs(H[mask]), _eps)),
-                mode="lines", line=dict(width=1.5), showlegend=False,
+                x=f[mask],
+                y=20 * np.log10(np.maximum(np.abs(H[mask]), _eps)),
+                mode="lines",
+                line=dict(width=1.5),
+                showlegend=False,
             ),
-            row=row_m, col=1,
+            row=row_m,
+            col=1,
         )
         fig.add_trace(
             go.Scatter(
-                x=f[mask], y=np.degrees(np.angle(H[mask])),
-                mode="lines", line=dict(width=1.5), showlegend=False,
+                x=f[mask],
+                y=np.degrees(np.angle(H[mask])),
+                mode="lines",
+                line=dict(width=1.5),
+                showlegend=False,
             ),
-            row=row_p, col=1,
+            row=row_p,
+            col=1,
         )
         fig.update_yaxes(title_text="|H| (dB)", row=row_m, col=1)
         fig.update_yaxes(title_text="Phase (°)", row=row_p, col=1)

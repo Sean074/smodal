@@ -22,7 +22,7 @@ import re
 import numpy as np
 import pandas as pd
 
-_BLOCKED = re.compile(r'__|import|open|exec\b|eval\b|\bos\b|subprocess')
+_BLOCKED = re.compile(r"__|import|open|exec\b|eval\b|\bos\b|subprocess")
 
 
 def list_channels(df: pd.DataFrame) -> list[str]:

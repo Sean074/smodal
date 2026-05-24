@@ -50,8 +50,7 @@ def downsample(
 
     if target_fs >= current_fs:
         return None, (
-            f"target_fs ({target_fs:.2f} Hz) must be less than the current "
-            f"sample rate ({current_fs:.2f} Hz)."
+            f"target_fs ({target_fs:.2f} Hz) must be less than the current sample rate ({current_fs:.2f} Hz)."
         )
 
     channels = [c for c in df.columns if c != "time"]

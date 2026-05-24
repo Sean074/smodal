@@ -60,9 +60,7 @@ with ch_col_in:
 with ch_col_out:
     avail_outputs = [c for c in data_cols if c != input_channel]
     sel_outputs_default = st.session_state.get("simo_output_chs", avail_outputs)
-    sel_outputs = st.multiselect(
-        "Output channels", options=avail_outputs, default=avail_outputs, key="simo_output_chs"
-    )
+    sel_outputs = st.multiselect("Output channels", options=avail_outputs, default=avail_outputs, key="simo_output_chs")
 
 if not sel_outputs:
     st.warning("Select at least one output channel.")
@@ -95,9 +93,7 @@ with st.expander("Pre-processing (optional)"):
     if filter_type != "None":
         fc1, fc2 = st.columns(2)
         with fc1:
-            filter_order = st.slider(
-                "Filter order", min_value=1, max_value=8, value=4, key="simo_filter_order"
-            )
+            filter_order = st.slider("Filter order", min_value=1, max_value=8, value=4, key="simo_filter_order")
         with fc2:
             if filter_type in ("Lowpass", "Highpass"):
                 cutoff_params = float(
@@ -134,9 +130,7 @@ with st.expander("Pre-processing (optional)"):
 
     n_samples = max(4, int(round((t_max - t_min) * fs)) + 1)
     filt_label = filter_type if filter_type != "None" else "no filter"
-    st.caption(
-        f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}"
-    )
+    st.caption(f"Time window: {t_min:.3f}–{t_max:.3f} s  ·  ≈{n_samples} samples  ·  {filt_label}")
 
     if st.checkbox("Show time history preview", value=True, key="simo_show_th"):
         preview_cols = st.multiselect(
@@ -155,9 +149,7 @@ with st.expander("Pre-processing (optional)"):
                 and not (isinstance(cutoff_params, list) and cutoff_params[0] >= cutoff_params[1])
             )
             if filter_active:
-                df_filt = trim_and_filter(
-                    simo_df, t_min, t_max, filter_type, filter_order, cutoff_params, fs
-                )
+                df_filt = trim_and_filter(simo_df, t_min, t_max, filter_type, filter_order, cutoff_params, fs)
 
             n_rows_prev = len(preview_cols)
             fig_prev = make_subplots(
@@ -210,13 +202,11 @@ with st.expander("Pre-processing (optional)"):
 
 
 def _preview_proc():
-    _ok = not (
-        isinstance(cutoff_params, list)
-        and len(cutoff_params) == 2
-        and cutoff_params[0] >= cutoff_params[1]
-    )
+    _ok = not (isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1])
     return trim_and_filter(
-        simo_df, t_min, t_max,
+        simo_df,
+        t_min,
+        t_max,
         filter_type if _ok else "None",
         filter_order,
         cutoff_params if _ok else None,
@@ -227,8 +217,11 @@ def _preview_proc():
 # ── Section C: FFT preview expander ───────────────────────────────────────────
 with st.expander("FFT preview (optional)"):
     fft_fmax = st.slider(
-        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
-        value=float(fs / 2), key="simo_fft_fmax",
+        "Max frequency (Hz)",
+        min_value=0.0,
+        max_value=float(fs / 2),
+        value=float(fs / 2),
+        key="simo_fft_fmax",
     )
     st.plotly_chart(
         fft_subplot(_preview_proc(), [input_channel] + sel_outputs, fs, fft_fmax),
@@ -238,8 +231,11 @@ with st.expander("FFT preview (optional)"):
 # ── Section D: FRF preview expander ───────────────────────────────────────────
 with st.expander("FRF preview (optional)"):
     frf_fmax = st.slider(
-        "Max frequency (Hz)", min_value=0.0, max_value=float(fs / 2),
-        value=float(fs / 2), key="simo_frf_fmax",
+        "Max frequency (Hz)",
+        min_value=0.0,
+        max_value=float(fs / 2),
+        value=float(fs / 2),
+        key="simo_frf_fmax",
     )
     st.plotly_chart(
         frf_subplot(_preview_proc(), input_channel, sel_outputs, fs, frf_fmax),
@@ -253,44 +249,38 @@ ctrl_col, chart_col = st.columns([1, 3])
 with ctrl_col:
     st.subheader("Step 1 — Stability Diagram")
 
-    frf_method = st.radio("FRF method", ["Welch", "Single FFT"],
-                          horizontal=True, key="si_frf_method")
+    frf_method = st.radio("FRF method", ["Welch", "Single FFT"], horizontal=True, key="si_frf_method")
 
     if frf_method == "Welch":
-        n_seg = st.number_input("Segments", min_value=2, max_value=50,
-                                value=8, step=1, key="si_segments")
-        ovlp_pct = st.slider("Overlap (%)", min_value=0, max_value=90,
-                             value=50, step=5, key="si_overlap")
-        welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"],
-                                 key="si_welch_win")
+        n_seg = st.number_input("Segments", min_value=2, max_value=50, value=8, step=1, key="si_segments")
+        ovlp_pct = st.slider("Overlap (%)", min_value=0, max_value=90, value=50, step=5, key="si_overlap")
+        welch_win = st.selectbox("Window", ["hann", "flattop", "boxcar"], key="si_welch_win")
         nperseg_preview = max(4, n_samples // n_seg)
         df_hz = fs / nperseg_preview
         st.caption(f"Δf ≈ {df_hz:.3f} Hz  |  {nperseg_preview} samples/segment")
 
-    frf_est = st.radio("FRF estimator", ["H1", "H2", "Hv"],
-                       horizontal=True, key="si_frf_est")
+    frf_est = st.radio("FRF estimator", ["H1", "H2", "Hv"], horizontal=True, key="si_frf_est")
 
     si_freqs_cached = st.session_state.get("si_freqs")
     f_nyq = float(si_freqs_cached[-1]) if si_freqs_cached is not None else fs / 2.0
     f_step = round(f_nyq / 500, 4) or 0.01
     f_min, f_max = st.slider(
-        "Frequency range (Hz)", min_value=0.0, max_value=f_nyq,
-        value=(0.0, f_nyq), step=f_step, key="si_frange",
+        "Frequency range (Hz)",
+        min_value=0.0,
+        max_value=f_nyq,
+        value=(0.0, f_nyq),
+        step=f_step,
+        key="si_frange",
     )
 
-    max_order = st.slider("Max model order", min_value=4, max_value=100,
-                          value=40, step=2, key="si_max_order")
+    max_order = st.slider("Max model order", min_value=4, max_value=100, value=40, step=2, key="si_max_order")
 
     with st.expander("Stability thresholds"):
-        df_thr = st.number_input("Δf threshold (%)", value=1.0, step=0.5,
-                                 min_value=0.1, key="si_df_thr") / 100.0
-        dd_thr = st.number_input("Δξ threshold (%)", value=5.0, step=1.0,
-                                 min_value=0.1, key="si_dd_thr") / 100.0
-        mac_thr = st.slider("MAC threshold", min_value=0.5, max_value=1.0,
-                            value=0.95, step=0.01, key="si_mac_thr")
+        df_thr = st.number_input("Δf threshold (%)", value=1.0, step=0.5, min_value=0.1, key="si_df_thr") / 100.0
+        dd_thr = st.number_input("Δξ threshold (%)", value=5.0, step=1.0, min_value=0.1, key="si_dd_thr") / 100.0
+        mac_thr = st.slider("MAC threshold", min_value=0.5, max_value=1.0, value=0.95, step=0.01, key="si_mac_thr")
 
-    build_btn = st.button("Build Stability Diagram", type="primary",
-                          use_container_width=True, key="si_build")
+    build_btn = st.button("Build Stability Diagram", type="primary", use_container_width=True, key="si_build")
 
     st.divider()
     st.subheader("Step 2 — Mode Specification")
@@ -303,8 +293,7 @@ with ctrl_col:
     deduped = deduplicate_stable_poles(stab_results) if stab_results is not None else []
     auto_n = max(1, len(deduped))
 
-    n_modes = st.number_input("Number of modes", min_value=1, max_value=20,
-                              value=auto_n, step=1, key="si_n_modes")
+    n_modes = st.number_input("Number of modes", min_value=1, max_value=20, value=auto_n, step=1, key="si_n_modes")
 
     if len(deduped) >= n_modes:
         init_rows = deduped[:n_modes]
@@ -313,20 +302,22 @@ with ctrl_col:
             extra = cmif_peak_estimates(cmif_for_peaks, freqs_cache, n_modes - len(deduped))
             init_rows = deduped + extra
         else:
-            init_rows = deduped + [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
-                                   for _ in range(n_modes - len(deduped))]
+            init_rows = deduped + [
+                {"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes - len(deduped))
+            ]
     else:
         if cmif_for_peaks is not None:
             init_rows = cmif_peak_estimates(cmif_for_peaks, freqs_cache, n_modes)
         else:
-            init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"}
-                         for _ in range(n_modes)]
+            init_rows = [{"fn_hz": 0.0, "xi_pct": 2.0, "source": "manual"} for _ in range(n_modes)]
 
-    init_df = pd.DataFrame({
-        "fn (Hz)": [r["fn_hz"] for r in init_rows[:n_modes]],
-        "ξ (%)": [r["xi_pct"] for r in init_rows[:n_modes]],
-        "source": [r["source"] for r in init_rows[:n_modes]],
-    })
+    init_df = pd.DataFrame(
+        {
+            "fn (Hz)": [r["fn_hz"] for r in init_rows[:n_modes]],
+            "ξ (%)": [r["xi_pct"] for r in init_rows[:n_modes]],
+            "source": [r["source"] for r in init_rows[:n_modes]],
+        }
+    )
 
     estimates_df = st.data_editor(
         init_df,
@@ -340,8 +331,7 @@ with ctrl_col:
         key="si_estimates",
     )
 
-    extract_btn = st.button("Extract Mode Shapes", type="secondary",
-                            use_container_width=True, key="si_extract")
+    extract_btn = st.button("Extract Mode Shapes", type="secondary", use_container_width=True, key="si_extract")
 
 # ── Build Stability Diagram ───────────────────────────────────────────────────
 if build_btn:
@@ -350,9 +340,7 @@ if build_btn:
         st.stop()
 
     _cutoffs_ok = not (
-        isinstance(cutoff_params, list)
-        and len(cutoff_params) == 2
-        and cutoff_params[0] >= cutoff_params[1]
+        isinstance(cutoff_params, list) and len(cutoff_params) == 2 and cutoff_params[0] >= cutoff_params[1]
     )
     if not _cutoffs_ok:
         st.error("Filter: low cutoff must be less than high cutoff.")
@@ -360,7 +348,9 @@ if build_btn:
 
     with st.spinner("Pre-processing…"):
         proc_df = trim_and_filter(
-            simo_df, t_min, t_max,
+            simo_df,
+            t_min,
+            t_max,
             filter_type if _cutoffs_ok else "None",
             filter_order,
             cutoff_params if _cutoffs_ok else None,
@@ -377,7 +367,10 @@ if build_btn:
             last_res = compute_welch_quantities(
                 proc_df[input_channel].values,
                 proc_df[ch].values,
-                fs, nperseg, noverlap, welch_win,
+                fs,
+                nperseg,
+                noverlap,
+                welch_win,
             )
             H_cols.append(last_res[frf_est])
         freqs = last_res["freqs"]
@@ -397,7 +390,9 @@ if build_btn:
         with warnings.catch_warnings(record=True) as _stab_warns:
             warnings.simplefilter("always")
             table = build_stability_table(
-                H_band, f_band, fs,
+                H_band,
+                f_band,
+                fs,
                 max_order=max_order,
                 method="plscf",
                 df_thr=df_thr,
@@ -467,7 +462,7 @@ if extract_btn:
         "fn": fn_fit,
         "xi": xi_fit,
         "poles": poles,
-        "mode_shapes": residues,       # (n_outputs, n_modes) complex
+        "mode_shapes": residues,  # (n_outputs, n_modes) complex
         "output_channels": sel_out,
         "freqs": freqs,
         "H_measured": H_mat,
@@ -483,9 +478,7 @@ with chart_col:
     modal_res = st.session_state.get("modal_results")
     freqs_chart = st.session_state.get("si_freqs")
 
-    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(
-        ["CMIF", "Stability Diagram", "Mode Shapes", "Export"]
-    )
+    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Export"])
 
     # ── CMIF ──────────────────────────────────────────────────────────────────
     with tab_cmif:
@@ -494,14 +487,20 @@ with chart_col:
         else:
             band_mask = (freqs_chart >= f_min) & (freqs_chart <= f_max)
             fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=freqs_chart[band_mask], y=cmif_vals[band_mask, 0], mode="lines",
-                line=dict(color="#1f77b4", width=1.5), name="σ₁",
-            ))
+            fig.add_trace(
+                go.Scatter(
+                    x=freqs_chart[band_mask],
+                    y=cmif_vals[band_mask, 0],
+                    mode="lines",
+                    line=dict(color="#1f77b4", width=1.5),
+                    name="σ₁",
+                )
+            )
             fig.update_yaxes(type="log", title_text="CMIF")
             fig.update_xaxes(title_text="Frequency (Hz)", range=[f_min, f_max])
             fig.update_layout(
-                height=350, margin=dict(t=30, b=50, l=60, r=20),
+                height=350,
+                margin=dict(t=30, b=50, l=60, r=20),
                 title="Complex Mode Indicator Function",
                 legend=dict(orientation="h", y=-0.15),
             )
@@ -514,10 +513,10 @@ with chart_col:
             st.info("Click **Build Stability Diagram** to run the analysis.")
         else:
             _style = {
-                "new":       dict(color="lightgrey", symbol="circle-open", size=6),
-                "stable_f":  dict(color="#1f77b4",   symbol="cross",        size=7),
-                "stable_fd": dict(color="#ff7f0e",   symbol="x",            size=7),
-                "stable_all":dict(color="#2ca02c",   symbol="star",         size=9),
+                "new": dict(color="lightgrey", symbol="circle-open", size=6),
+                "stable_f": dict(color="#1f77b4", symbol="cross", size=7),
+                "stable_fd": dict(color="#ff7f0e", symbol="x", size=7),
+                "stable_all": dict(color="#2ca02c", symbol="star", size=9),
             }
             _label = {
                 "new": "New (o)",
@@ -532,11 +531,16 @@ with chart_col:
             if cmif_vals is not None and freqs_chart is not None:
                 band_mask = (freqs_chart >= f_min) & (freqs_chart <= f_max)
                 cmif_norm = cmif_vals[:, 0] / (np.max(cmif_vals[:, 0]) + eps) * (max_order * 0.9)
-                fig.add_trace(go.Scatter(
-                    x=freqs_chart[band_mask], y=cmif_norm[band_mask], mode="lines",
-                    line=dict(color="rgba(150,150,150,0.3)", width=1),
-                    name="CMIF (bg)", showlegend=False,
-                ))
+                fig.add_trace(
+                    go.Scatter(
+                        x=freqs_chart[band_mask],
+                        y=cmif_norm[band_mask],
+                        mode="lines",
+                        line=dict(color="rgba(150,150,150,0.3)", width=1),
+                        name="CMIF (bg)",
+                        showlegend=False,
+                    )
+                )
 
             # Scatter one trace per stability class
             buckets: dict[str, dict] = {k: {"x": [], "y": []} for k in _style}
@@ -549,12 +553,15 @@ with chart_col:
             for cls, pts in buckets.items():
                 if pts["x"]:
                     st_cfg = _style[cls]
-                    fig.add_trace(go.Scatter(
-                        x=pts["x"], y=pts["y"], mode="markers",
-                        marker=dict(color=st_cfg["color"], symbol=st_cfg["symbol"],
-                                    size=st_cfg["size"]),
-                        name=_label[cls],
-                    ))
+                    fig.add_trace(
+                        go.Scatter(
+                            x=pts["x"],
+                            y=pts["y"],
+                            mode="markers",
+                            marker=dict(color=st_cfg["color"], symbol=st_cfg["symbol"], size=st_cfg["size"]),
+                            name=_label[cls],
+                        )
+                    )
 
             fig.update_xaxes(title_text="Natural Frequency (Hz)", range=[f_min, f_max])
             fig.update_yaxes(title_text="Model Order")
@@ -574,8 +581,8 @@ with chart_col:
             fn_fit = modal_res["fn"]
             xi_fit = modal_res["xi"]
             poles_fit = modal_res["poles"]
-            residues = modal_res["mode_shapes"]   # (n_out, n_modes)
-            H_meas = modal_res["H_measured"]       # (n_freqs, n_out)
+            residues = modal_res["mode_shapes"]  # (n_out, n_modes)
+            H_meas = modal_res["H_measured"]  # (n_freqs, n_out)
             H_syn = modal_res["H_synthesis"]
             nmse = modal_res["nmse"]
             out_chs = modal_res["output_channels"]
@@ -585,8 +592,11 @@ with chart_col:
             # Summary table
             summary_rows = []
             for m in range(n_modes_fit):
-                row: dict = {"Mode": m + 1, "fn (Hz)": round(float(fn_fit[m]), 4),
-                             "ξ (%)": round(float(xi_fit[m]) * 100, 3)}
+                row: dict = {
+                    "Mode": m + 1,
+                    "fn (Hz)": round(float(fn_fit[m]), 4),
+                    "ξ (%)": round(float(xi_fit[m]) * 100, 3),
+                }
                 for o, ch in enumerate(out_chs):
                     row[f"|φ| {ch}"] = round(float(np.abs(residues[o, m])), 6)
                     row[f"∠φ {ch} (°)"] = round(float(np.degrees(np.angle(residues[o, m]))), 2)
@@ -594,8 +604,7 @@ with chart_col:
             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
             # Individual modal FRF contributions
-            show_modal = st.checkbox("Show individual modal contributions", value=False,
-                                     key="si_show_modal")
+            show_modal = st.checkbox("Show individual modal contributions", value=False, key="si_show_modal")
 
             all_freqs = modal_res["freqs"]
             band_mask = (all_freqs >= f_min) & (all_freqs <= f_max)
@@ -608,10 +617,12 @@ with chart_col:
             for ch in out_chs:
                 titles += [f"|H| — {ch} (dB)", f"∠H — {ch} (°)"]
 
-            fig = make_subplots(rows=n_rows_fig, cols=1, shared_xaxes=True,
-                                vertical_spacing=0.04, subplot_titles=titles)
+            fig = make_subplots(
+                rows=n_rows_fig, cols=1, shared_xaxes=True, vertical_spacing=0.04, subplot_titles=titles
+            )
 
-            def _color(i): return f"hsl({(i * 47) % 360}, 65%, 50%)"
+            def _color(i):
+                return f"hsl({(i * 47) % 360}, 65%, 50%)"
 
             for o, ch in enumerate(out_chs):
                 row_mag = 2 * o + 1
@@ -621,44 +632,73 @@ with chart_col:
                 H_m = H_meas[band_mask, o]
                 H_s = H_syn[band_mask, o]
 
-                fig.add_trace(go.Scatter(
-                    x=freqs_plot, y=20 * np.log10(np.maximum(np.abs(H_m), eps)),
-                    mode="lines", name=f"Measured — {ch}",
-                    line=dict(color=color, width=1.5),
-                    showlegend=(o == 0),
-                ), row=row_mag, col=1)
-                fig.add_trace(go.Scatter(
-                    x=freqs_plot, y=20 * np.log10(np.maximum(np.abs(H_s), eps)),
-                    mode="lines", name="Synthesised",
-                    line=dict(color="red", width=1.5, dash="dash"),
-                    showlegend=(o == 0),
-                ), row=row_mag, col=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=freqs_plot,
+                        y=20 * np.log10(np.maximum(np.abs(H_m), eps)),
+                        mode="lines",
+                        name=f"Measured — {ch}",
+                        line=dict(color=color, width=1.5),
+                        showlegend=(o == 0),
+                    ),
+                    row=row_mag,
+                    col=1,
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=freqs_plot,
+                        y=20 * np.log10(np.maximum(np.abs(H_s), eps)),
+                        mode="lines",
+                        name="Synthesised",
+                        line=dict(color="red", width=1.5, dash="dash"),
+                        showlegend=(o == 0),
+                    ),
+                    row=row_mag,
+                    col=1,
+                )
 
-                fig.add_trace(go.Scatter(
-                    x=freqs_plot, y=np.degrees(np.angle(H_m)),
-                    mode="lines", name=f"Measured — {ch}",
-                    line=dict(color=color, width=1.5), showlegend=False,
-                ), row=row_ph, col=1)
-                fig.add_trace(go.Scatter(
-                    x=freqs_plot, y=np.degrees(np.angle(H_s)),
-                    mode="lines", name="Synthesised",
-                    line=dict(color="red", width=1.5, dash="dash"), showlegend=False,
-                ), row=row_ph, col=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=freqs_plot,
+                        y=np.degrees(np.angle(H_m)),
+                        mode="lines",
+                        name=f"Measured — {ch}",
+                        line=dict(color=color, width=1.5),
+                        showlegend=False,
+                    ),
+                    row=row_ph,
+                    col=1,
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=freqs_plot,
+                        y=np.degrees(np.angle(H_s)),
+                        mode="lines",
+                        name="Synthesised",
+                        line=dict(color="red", width=1.5, dash="dash"),
+                        showlegend=False,
+                    ),
+                    row=row_ph,
+                    col=1,
+                )
 
                 if show_modal:
                     for m in range(n_modes_fit):
                         pole = poles_fit[m]
                         res_m = residues[o, m]
-                        H_mode = (res_m / (1j * omega - pole)
-                                  + res_m.conj() / (1j * omega - pole.conj()))
-                        fig.add_trace(go.Scatter(
-                            x=freqs_plot,
-                            y=20 * np.log10(np.maximum(np.abs(H_mode), eps)),
-                            mode="lines",
-                            name=f"Mode {m+1} — {ch}",
-                            line=dict(dash="dot", width=1),
-                            showlegend=(o == 0),
-                        ), row=row_mag, col=1)
+                        H_mode = res_m / (1j * omega - pole) + res_m.conj() / (1j * omega - pole.conj())
+                        fig.add_trace(
+                            go.Scatter(
+                                x=freqs_plot,
+                                y=20 * np.log10(np.maximum(np.abs(H_mode), eps)),
+                                mode="lines",
+                                name=f"Mode {m + 1} — {ch}",
+                                line=dict(dash="dot", width=1),
+                                showlegend=(o == 0),
+                            ),
+                            row=row_mag,
+                            col=1,
+                        )
 
                 fig.update_yaxes(title_text="|H| (dB)", row=row_mag, col=1)
                 fig.update_yaxes(title_text="Phase (°)", row=row_ph, col=1)
@@ -707,9 +747,7 @@ with chart_col:
 
             rows = []
             for m in range(len(fn_fit)):
-                row = {"mode": m + 1,
-                       "fn_hz": round(float(fn_fit[m]), 4),
-                       "xi_pct": round(float(xi_fit[m]) * 100, 3)}
+                row = {"mode": m + 1, "fn_hz": round(float(fn_fit[m]), 4), "xi_pct": round(float(xi_fit[m]) * 100, 3)}
                 for o, ch in enumerate(out_chs):
                     row[f"phi_amp_{ch}"] = float(np.abs(residues[o, m]))
                     row[f"phi_phase_deg_{ch}"] = float(np.degrees(np.angle(residues[o, m])))

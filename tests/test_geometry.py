@@ -58,6 +58,7 @@ _F06_MINIMAL = """\
 # parse_wireframe_bdf
 # ---------------------------------------------------------------------------
 
+
 def test_parse_wireframe_bdf_grid_count_free_field():
     geom = parse_wireframe_bdf(io.StringIO(_BDF_FREE))
     assert len(geom.grids) == 3
@@ -99,6 +100,7 @@ def test_parse_wireframe_bdf_empty_model():
 # parse_f06
 # ---------------------------------------------------------------------------
 
+
 def test_parse_f06_frequency_count():
     result = parse_f06(io.StringIO(_F06_MINIMAL))
     assert len(result["frequencies_hz"]) == 2
@@ -130,6 +132,7 @@ def test_parse_f06_mode_shape_values():
 # ---------------------------------------------------------------------------
 # expand_rbe3_displacements
 # ---------------------------------------------------------------------------
+
 
 def test_expand_rbe3_displacements_weighted_average():
     grids = {
