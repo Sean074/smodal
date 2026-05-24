@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Public Streamlit Community Cloud deployment at <https://smodal.streamlit.app>.
+- Landing-page caption — one-sentence app description with a GitHub link for cold visitors.
+- `.streamlit/config.toml` settings tuned for the hosted deploy (`maxUploadSize`, telemetry disabled).
+- README deploy badge linking to the live app.
 
 ### Changed
 
