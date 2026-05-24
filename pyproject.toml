@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smodal"
-version = "0.1.0"
+version = "1.0.0"
 description = "Streamlit app for experimental and operational modal analysis (EMA / OMA): SIMO, MIMO, FDD, MAC, 3-D mode shapes."
 readme = "README.md"
 requires-python = ">=3.10"
