@@ -2,6 +2,8 @@
 
 A multi-page Streamlit app for structural dynamics modal analysis and experimental modal analysis (EMA). Supports SIMO and MIMO testing workflows through a browser-based GUI — no coding required to run an analysis.
 
+**License:** MIT (see [LICENSE](LICENSE)) — free to use, modify, and redistribute, including commercially.
+
 ---
 
 ## Prerequisites
@@ -87,3 +89,29 @@ Pages 1–3 feed into each other in sequence and can be used independently as QC
 | `docs/data_model.md` | Session state key table, core module API reference |
 | `docs/algorithms.md` | Signal processing and system ID theory |
 | `docs/methods.ipynb` | Worked Python examples |
+
+---
+
+## Author
+
+Sean O'Meara — <sean.c.omeara74@gmail.com>
+
+Bug reports and pull requests are welcome via the [GitHub issue tracker](https://github.com/Sean074/modal_analysis/issues).
+
+---
+
+## Disclaimer
+
+This application implements standard, well-published signal-processing and system-identification methods — FFT, H1/H2/Hv frequency-response estimators, polyreference Least-Squares Complex Frequency-domain (pLSCF / PolyMAX) pole extraction, Frequency Domain Decomposition (FDD), and the Modal Assurance Criterion (MAC) — using established numerical libraries (`numpy`, `scipy`).
+
+It is intended as an educational and exploratory tool for structural dynamics work. Results are **not certified** for safety-critical analysis. Modal-identification quality depends heavily on input data quality (signal-to-noise ratio, excitation adequacy, sensor placement) and on user judgement when selecting stable poles. Always validate identified modes against engineering expectations and, where consequential, against an established commercial modal-analysis package.
+
+The software is provided "as is", without warranty of any kind. See the [LICENSE](LICENSE) file for the full disclaimer of liability.
+
+---
+
+## License
+
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Sean O'Meara.
+
+You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the software, subject to the conditions in the LICENSE file.

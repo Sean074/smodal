@@ -1,16 +1,22 @@
 # Critical Design Review — Modal Analysis Application
-**Date:** 2026-05-24 (Pass 2 — re-review)
+**Date:** 2026-05-24 (Pass 3 — re-review)
 **Reviewer:** Claude Code (claude-sonnet-4-6)
 **Branch:** `mac_dev`
 **Test result:** `pytest tests/ -v` — **93 passed, 0 failed, 1 warning** (unrelated to code under review)
-**Prior review:** 2026-05-23 (Pass 1, 82 passed)
+**Prior review:** 2026-05-24 (Pass 2, all issues resolved)
 **Review standard:** `docs/code_review.md`
 
 ---
 
-## Executive Summary
+## Executive Summary — Pass 3
 
-**All 16 issues from Pass 1 are resolved.** The test suite grew from 82 to 93 tests and now passes clean under `-W error::RuntimeWarning` (the three RuntimeWarning sources from Pass 1 are gone). No CRITICAL, MAJOR, or MINOR issues remain. The codebase is ready for beta release.
+**Pass 2 approved the branch for beta; Pass 3 is a full re-review of all code on `mac_dev`.** All 19 issues from Passes 1–2 remain resolved. Pass 3 finds **2 new MAJOR** and **4 new MINOR** issues — none are regressions of previously fixed items. The 2 MAJOR items (MIMO band-limited residue extraction and suppressed ill-conditioning warning) must be fixed before merge.
+
+---
+
+## Executive Summary — Pass 2 (retained)
+
+**All 16 issues from Pass 1 are resolved.** The test suite grew from 82 to 93 tests and now passes clean under `-W error::RuntimeWarning`. No CRITICAL, MAJOR, or MINOR issues remained at the time of Pass 2 approval.
 
 ---
 
@@ -165,7 +171,19 @@ Remaining coverage gaps:
 
 ---
 
-## Final Approval Gate
+## Final Approval Gate — Pass 3
+
+| Gate | Status |
+|---|---|
+| All [CRITICAL] resolved | ✓ — 0 open |
+| All [MAJOR] resolved | **✗ — P3-M1 and P3-M2 open** |
+| `pytest tests/ -v` passes | ✓ 93/93 |
+| `docs/data_model.md` up to date | ✓ |
+| No new [CRITICAL] introduced since last review pass | ✓ |
+
+**Pass 3 verdict: BLOCKED — 2 MAJOR issues must be fixed before merge.**
+
+## Final Approval Gate — Pass 2 (retained for reference)
 
 | Gate | Status |
 |---|---|
@@ -175,7 +193,110 @@ Remaining coverage gaps:
 | `docs/data_model.md` up to date | ✓ — NW1, NW2 resolved |
 | No new [CRITICAL] introduced since last review pass | ✓ |
 
-**Merge verdict: APPROVED for beta — no blocking issues. All MINOR items resolved.**
+**Pass 2 verdict: APPROVED for beta — no blocking issues. All MINOR items resolved.**
+
+---
+
+## Pass 3 New Findings
+
+### MAJOR Issues (new — block merge)
+
+---
+
+**[MAJOR] P3-M1 — `pages/5_MIMO.py:536` — MIMO residue extraction uses full-range H_mat/freqs instead of band-limited arrays (M5 fix not propagated from SIMO)**
+
+WHY: The M5 fix applied to SIMO (`si_H_mat_band`, `si_freqs_band`) was never replicated in MIMO. `build_stability_table` is called with `H_band`/`freqs_band`, so poles are identified within `[f_min, f_max]`. But `extract_residues` at line 536 receives `mimo_H_mat` (full range) and `mimo_freqs` (full range), so the partial-fraction least-squares system includes all frequencies 0 Hz to Nyquist. Out-of-band response (noise floor, other modes, filter roll-off) biases the residue estimates.
+
+FIX: Store `mimo_H_mat_band` and use it (alongside `mimo_freqs_band`) in the extract step, matching what SIMO does at lines 405–406 and 443:
+
+```python
+# In build step (after line 497):
+st.session_state["mimo_H_mat_band"] = H_band
+
+# In extract step (replace lines 508–509):
+H_mat = st.session_state.get("mimo_H_mat_band")
+freqs_ext = st.session_state.get("mimo_freqs_band")
+if H_mat is None or freqs_ext is None:
+    st.error("Build the stability diagram first.")
+    st.stop()
+
+# And NMSE should be computed band-limited too:
+H_syn_band = synthesize_frf(freqs_ext, poles, residues)
+nmse = modal_fit_nmse(H_mat, H_syn_band)
+# Keep full-range synthesis for plotting only:
+H_syn = synthesize_frf(st.session_state["mimo_freqs"], poles, residues)
+```
+
+---
+
+**[MAJOR] P3-M2 — `pages/5_MIMO.py:529` — Ill-conditioning warning compares full-range freq count vs 2×poles; always passes, masking underdetermined band-limited system**
+
+WHY: `len(freqs_ext)` is the full-spectrum freq count (e.g., 1000 lines for a 1000-sample signal). The check `len(freqs_ext) < 2 * len(poles)` will never fire for any realistic configuration. If the analysis band contains only 50 freq lines and 25 poles are requested, the residue fit is underdetermined within the band — but the 1000-point full-range count masks this. The companion fix in SIMO at lines 436–440 correctly checks `len(freqs_band)`.
+
+FIX: After P3-M1 is applied, `freqs_ext` will be the band-limited array. The check at line 529 then naturally uses `len(freqs_band)` and is correct. No additional change needed beyond P3-M1.
+
+---
+
+### MINOR Issues (new)
+
+---
+
+**[MINOR] P3-N1 — `pages/3_Spectral_Analysis.py:352` — Cross-power tab phase display is sign-inverted after Gxy/Gyx naming swap**
+
+WHY: The N1 fix renamed the Gxy/Gyx variables in `core/spectral.py`. Old `Gyx = Sy * conj(Sx)` had phase = ∠Y − ∠X = ∠H. The new `Gyx = conj(Gxy) = conj(Sy * conj(Sx))` has phase = ∠X − ∠Y = −∠H. Page 3 still reads `ch_data[ch]["Gyx"]` and plots its angle (line 352): the Cross-Power phase subplot now shows the negative of the FRF phase. Magnitude is unchanged.
+
+FIX: Either (a) plot `Gxy` instead (which has the physically expected phase ∠H), or (b) update the tab label to `"∠Gyx — {ch} (°)"` clearly indicating the conjugate direction, and add a caption. Option (a) is the cleaner fix:
+
+```python
+# Replace line 346:
+Gyx = ch_data[ch]["Gxy"][mask]   # Gxy = Sy*conj(Sx); phase = ∠H
+# Update titles at line 336:
+titles += [f"|Gxy| — {ch} (dB)", f"∠Gxy — {ch} (°)"]
+```
+
+---
+
+**[MINOR] P3-N2 — `pages/3_Spectral_Analysis.py:268` — `N = 2*(len(freqs)−1)` gives wrong FFT length for odd-length signals in Single FFT PSD**
+
+WHY: `np.fft.rfftfreq(n)` returns `n//2 + 1` bins. For even `n`, `2*(n//2+1-1) = n` (correct). For odd `n`, `2*((n-1)//2+1-1) = n-1` (off by one). The window array constructed at line 282 (`get_window(..., N)`) has length `n-1` instead of `n`, giving a slightly wrong W2 and therefore a systematic Single FFT PSD normalization error.
+
+FIX:
+```python
+# Replace line 268:
+N = 2 * len(freqs) - (1 if freqs[-1] == sample_rate / 2 else 0)
+# Or more robustly, infer from the saved fft_results:
+N = len(fft_res["ffts"][plot_chs[0]]) * 2 - (1 if ...)
+```
+Simplest correct fix: store `N` in `fft_results` when computing in `2_FFT.py` and read it here.
+
+---
+
+**[MINOR] P3-N3 — `core/sysid.py:394` — `fdd_damping` gives overestimated damping when peak is at the last frequency index**
+
+WHY: The upper half-power loop `for k in range(peak_idx + 1, len(sv1))` is empty when `peak_idx = len(sv1) - 1`. `f_b` defaults to `freqs[-1]`, so `xi_pct = (freqs[-1] - f_a) / (2 * fn) * 100` may overestimate damping. The 50% clamp at the call site only catches severe cases; moderate overestimates slip through.
+
+FIX: Add an explicit guard:
+```python
+f_b = float(freqs[-1])
+found_upper = False
+for k in range(peak_idx + 1, len(sv1)):
+    if sv1[k] <= half_power:
+        ...
+        found_upper = True
+        break
+if not found_upper:
+    return 0.0, float(freqs[0]), float(freqs[-1])  # signal failure; caller clamps to 2%
+```
+
+---
+
+**[MINOR] P3-N4 — `core/sysid.py:313` / `core/sysid.py:239` — `RuntimeWarning` from `extract_residues` inside `build_stability_table` is not surfaced to the Streamlit UI**
+
+WHY: When the analysis band is narrow and model order is high, `extract_residues` issues `warnings.warn(..., RuntimeWarning)` at line 313. Inside `build_stability_table`, the call is wrapped in `try/except Exception` (line 239), which does not suppress warnings. The warning goes to stderr only; the user sees no indication in the app. Subsequent MAC-based pole classification uses ill-conditioned residues, potentially misclassifying `stable_all` poles as `stable_fd` without any visible error.
+
+FIX: Catch the RuntimeWarning inside `build_stability_table` using `warnings.catch_warnings` and either re-raise as a return-value flag or propagate to the calling page. Alternatively, the page-level underdetermined check (P3-M2) would catch the case before it reaches the stability-diagram level.
+
+---
 
 ---
 
@@ -203,3 +324,9 @@ Remaining coverage gaps:
 | NW1 | ~~MINOR~~ FIXED | `docs/data_model.md` | 137 | `add_channel` description updated to "numexpr engine (Python fallback)" | FIXED |
 | NW2 | ~~MINOR~~ FIXED | `docs/data_model.md` | — | 7 page-7 session-state keys (`mac_*`, `_mac_f06_name`) added to table | FIXED |
 | NW3 | ~~NIT~~ FIXED | `pages/7_MAC.py` | 79–81 | `.get()` used for `mimo_modal_results`/`modal_results` — consistent with project convention | FIXED |
+| P3-M1 | MAJOR | `pages/5_MIMO.py` | 508–509, 536 | MIMO residue extraction uses full-range `H_mat`/`freqs` instead of band-limited — M5 fix not propagated from SIMO | OPEN |
+| P3-M2 | MAJOR | `pages/5_MIMO.py` | 529 | Ill-conditioning warning compares full-range freq count vs 2×poles; always passes, silently masking underdetermined band | OPEN |
+| P3-N1 | MINOR | `pages/3_Spectral_Analysis.py` | 352 | Cross-power phase display sign-inverted after Gxy/Gyx naming swap; `Gyx` now plots `conj(Gxy)` = −∠H | OPEN |
+| P3-N2 | MINOR | `pages/3_Spectral_Analysis.py` | 268 | `N = 2*(len(freqs)−1)` wrong for odd-length signals; window W2 computed with n−1 samples | OPEN |
+| P3-N3 | MINOR | `core/sysid.py` | 394 | `fdd_damping` returns overestimated damping when peak is at last freq index (`f_b` clamped to Nyquist) | OPEN |
+| P3-N4 | MINOR | `core/sysid.py` | 313, 239 | `RuntimeWarning` from `extract_residues` inside `build_stability_table` not surfaced to UI; silently degrades MAC classification | OPEN |

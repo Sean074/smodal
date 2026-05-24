@@ -1,4 +1,40 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modal_analysis"
+version = "0.1.0"
+description = "Streamlit app for experimental and operational modal analysis (EMA / OMA): SIMO, MIMO, FDD, MAC, 3-D mode shapes."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Sean O'Meara", email = "sean.c.omeara74@gmail.com"},
+]
+keywords = [
+    "modal-analysis",
+    "ema",
+    "oma",
+    "structural-dynamics",
+    "system-identification",
+    "streamlit",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["core*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+python_functions = ["test_*"]
 pythonpath = ["."]
