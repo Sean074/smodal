@@ -1,16 +1,22 @@
 # Critical Design Review — Modal Analysis Application
-**Date:** 2026-05-24 (Pass 3 — re-review)
+**Date:** 2026-05-24 (Pass 4 — re-review)
 **Reviewer:** Claude Code (claude-sonnet-4-6)
 **Branch:** `mac_dev`
-**Test result:** `pytest tests/ -v` — **93 passed, 0 failed, 1 warning** (unrelated to code under review)
-**Prior review:** 2026-05-24 (Pass 2, all issues resolved)
+**Test result:** `pytest tests/ -v` — **95 passed, 0 failed, 1 warning** (unrelated to code under review)
+**Prior review:** 2026-05-24 (Pass 3, P3-M1/M2 blocked merge)
 **Review standard:** `docs/code_review.md`
 
 ---
 
-## Executive Summary — Pass 3
+## Executive Summary — Pass 4
 
-**Pass 2 approved the branch for beta; Pass 3 is a full re-review of all code on `mac_dev`.** All 19 issues from Passes 1–2 remain resolved. Pass 3 finds **2 new MAJOR** and **4 new MINOR** issues — none are regressions of previously fixed items. The 2 MAJOR items (MIMO band-limited residue extraction and suppressed ill-conditioning warning) must be fixed before merge.
+**All 6 Pass 3 issues resolved.** Test count grew from 93 to 95; two new tests cover the P3-N3 (`fdd_damping` sentinel) and P3-N4 (ill-conditioning `RuntimeWarning` propagation) fixes. Pass 4 finds **0 new CRITICAL/MAJOR** and **1 new MINOR** and **1 new NIT** — no blocking items. Branch is approved for merge.
+
+---
+
+## Executive Summary — Pass 3 (retained)
+
+**Pass 2 approved the branch for beta; Pass 3 is a full re-review of all code on `mac_dev`.** All 19 issues from Passes 1–2 remain resolved. Pass 3 found **2 new MAJOR** and **4 new MINOR** issues. The 2 MAJOR items (P3-M1 and P3-M2) were fixed before Pass 4.
 
 ---
 
@@ -26,9 +32,9 @@
 |---|---|
 | Read relevant `docs/workflow_pages.md` sections | ✓ |
 | Read `docs/data_model.md` | ✓ |
-| Confirm docs updated with code changes | See NW1 — one stale phrase; see NW2 — 7 undocumented page-internal keys |
-| Check `todo.md` — known bugs | todo.md is clean (all prior items resolved) |
-| Confirm tests exist for new/changed `core/` functions | ✓ — 93 tests, up from 82 |
+| Confirm docs updated with code changes | Pass 4: `mimo_frf_est_used` missing from `data_model.md` (NIT, see P4-N2) |
+| Check `todo.md` — known bugs | USER items open (USER1-3); no code-review items in MAJOR/MINOR sections |
+| Confirm tests exist for new/changed `core/` functions | ✓ — 95 tests, up from 93 |
 | Identify high-blast-radius `core/` signature changes | None in this diff |
 
 ---
@@ -171,12 +177,26 @@ Remaining coverage gaps:
 
 ---
 
-## Final Approval Gate — Pass 3
+## Final Approval Gate — Pass 4
 
 | Gate | Status |
 |---|---|
 | All [CRITICAL] resolved | ✓ — 0 open |
-| All [MAJOR] resolved | **✗ — P3-M1 and P3-M2 open** |
+| All [MAJOR] resolved | ✓ — 0 open (P3-M1/M2 fixed) |
+| `pytest tests/ -v` passes | ✓ 95/95 |
+| `docs/data_model.md` up to date | ✓ (P4-N2 is NIT, non-blocking) |
+| No new [CRITICAL] introduced since last review pass | ✓ |
+
+**Pass 4 verdict: APPROVED — no blocking issues. 1 MINOR (P4-N1) and 1 NIT (P4-N2) open; fix in follow-up PR.**
+
+---
+
+## Final Approval Gate — Pass 3 (retained)
+
+| Gate | Status |
+|---|---|
+| All [CRITICAL] resolved | ✓ — 0 open |
+| All [MAJOR] resolved | **✗ — P3-M1 and P3-M2 open** (fixed before Pass 4) |
 | `pytest tests/ -v` passes | ✓ 93/93 |
 | `docs/data_model.md` up to date | ✓ |
 | No new [CRITICAL] introduced since last review pass | ✓ |
@@ -300,6 +320,41 @@ FIX: Catch the RuntimeWarning inside `build_stability_table` using `warnings.cat
 
 ---
 
+## Pass 4 New Findings
+
+### MINOR Issues (new — non-blocking)
+
+---
+
+**[MINOR] P4-N1 — `core/mimo.py:61` — `compute_mimo_frfs` latent `NameError` when `sel_outputs=[]` in Welch branch**
+
+WHY: The Welch branch assigns `freqs_full = res_a["freqs"]` after the `for ch in sel_outputs` loop. If `sel_outputs` is empty the loop body never executes, `res_a` is undefined, and the subsequent reference raises `NameError`. The page-level guard (`if not sel_outputs: st.stop()`) prevents this in normal use, but the core function has no internal protection and could fail if called directly.
+
+FIX: Assign `freqs_full` before the loop and update inside it, or validate at function entry:
+```python
+if not sel_outputs:
+    raise ValueError("sel_outputs must not be empty")
+```
+
+---
+
+### NIT Issues (new)
+
+---
+
+**[NIT] P4-N2 — `docs/data_model.md` — `mimo_frf_est_used` session-state key missing from `data_model.md` table**
+
+WHY: `pages/5_MIMO.py:512` writes `st.session_state["mimo_frf_est_used"] = frf_est`. The key appears in `docs/workflow_pages.md:420` but is absent from the authoritative `docs/data_model.md` session-state table, inconsistent with the analogous `si_frf_est_used` which is documented.
+
+FIX: Add to the `data_model.md` session-state table after the `mimo_n_out` row:
+```
+| `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+```
+
+---
+
+---
+
 ## Full Issue Summary Table
 
 | ID | Severity | File | Line | Short Description | Status |
@@ -324,9 +379,11 @@ FIX: Catch the RuntimeWarning inside `build_stability_table` using `warnings.cat
 | NW1 | ~~MINOR~~ FIXED | `docs/data_model.md` | 137 | `add_channel` description updated to "numexpr engine (Python fallback)" | FIXED |
 | NW2 | ~~MINOR~~ FIXED | `docs/data_model.md` | — | 7 page-7 session-state keys (`mac_*`, `_mac_f06_name`) added to table | FIXED |
 | NW3 | ~~NIT~~ FIXED | `pages/7_MAC.py` | 79–81 | `.get()` used for `mimo_modal_results`/`modal_results` — consistent with project convention | FIXED |
-| P3-M1 | MAJOR | `pages/5_MIMO.py` | 508–509, 536 | MIMO residue extraction uses full-range `H_mat`/`freqs` instead of band-limited — M5 fix not propagated from SIMO | OPEN |
-| P3-M2 | MAJOR | `pages/5_MIMO.py` | 529 | Ill-conditioning warning compares full-range freq count vs 2×poles; always passes, silently masking underdetermined band | OPEN |
-| P3-N1 | MINOR | `pages/3_Spectral_Analysis.py` | 352 | Cross-power phase display sign-inverted after Gxy/Gyx naming swap; `Gyx` now plots `conj(Gxy)` = −∠H | OPEN |
-| P3-N2 | MINOR | `pages/3_Spectral_Analysis.py` | 268 | `N = 2*(len(freqs)−1)` wrong for odd-length signals; window W2 computed with n−1 samples | OPEN |
-| P3-N3 | MINOR | `core/sysid.py` | 394 | `fdd_damping` returns overestimated damping when peak is at last freq index (`f_b` clamped to Nyquist) | OPEN |
-| P3-N4 | MINOR | `core/sysid.py` | 313, 239 | `RuntimeWarning` from `extract_residues` inside `build_stability_table` not surfaced to UI; silently degrades MAC classification | OPEN |
+| P3-M1 | ~~MAJOR~~ FIXED | `pages/5_MIMO.py` | 518–548 | `extract_residues(H_mat_band, freqs_ext, poles)` + `mimo_H_mat_band`/`mimo_freqs_band` stored and used | FIXED |
+| P3-M2 | ~~MAJOR~~ FIXED | `pages/5_MIMO.py` | 541 | `len(freqs_ext)` now checks band-limited count; naturally correct after P3-M1 | FIXED |
+| P3-N1 | ~~MINOR~~ FIXED | `pages/3_Spectral_Analysis.py` | 336, 346 | Cross-power tab plots `Gxy` (`∠Gxy` title); phase = ∠H correct | FIXED |
+| P3-N2 | ~~MINOR~~ FIXED | `pages/3_Spectral_Analysis.py` | 268 | `N = fft_res.get("n_samples", ...)` reads stored sample count; `n_samples` stored by page 2 | FIXED |
+| P3-N3 | ~~MINOR~~ FIXED | `core/sysid.py` | 415–416 | `found_upper` guard; returns `(0.0, freqs[0], freqs[-1])` sentinel; test added | FIXED |
+| P3-N4 | ~~MINOR~~ FIXED | `core/sysid.py` | 302–308; `pages/5_MIMO.py` | `build_stability_table` propagates `RuntimeWarning`; MIMO page catches with `warnings.catch_warnings`; test added | FIXED |
+| P4-N1 | MINOR | `core/mimo.py` | 61 | Latent `NameError` in `compute_mimo_frfs` Welch branch when `sel_outputs=[]` — `res_a` referenced before assignment | OPEN |
+| P4-N2 | NIT | `docs/data_model.md` | — | `mimo_frf_est_used` session-state key in `workflow_pages.md:420` but missing from `data_model.md` table | OPEN |

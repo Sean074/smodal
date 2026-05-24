@@ -1,26 +1,67 @@
+# === Project-specific ===
 todo.md
 wireframes*md
-CLAUDE.md
-.gitignore
 *scrap*
 dev/
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+
+# === Virtual environments ===
 .venv/
 .venv
-__init__.py
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
 venv/
+env/
 ENV/
 env.bak/
 venv.bak/
+
+# === Testing ===
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.hypothesis/
+
+# === Packaging ===
+*.egg-info/
+*.egg
+dist/
+build/
+
+# === Environment / config ===
+.env
+.env.*
+
+# === Jupyter ===
+.ipynb_checkpoints/
+
+# === Streamlit ===
+.streamlit/secrets.toml
+
+# === Claude Code ===
+.claude/settings.local.json
+
+# === IDE ===
 .idea/
 .vscode/
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === Windows ===
+Thumbs.db
+
+# === Misc ===
 *.log
 *.sqlite3
 *.db
 *.bak
 *.swp
-
+*.tmp
