@@ -1,10 +1,12 @@
+import warnings
+
 import numpy as np
 import scipy.linalg
 import scipy.signal
 
 
 def compute_cmif(H: np.ndarray) -> np.ndarray:
-    """H: (n_freqs, n_outputs) complex → (n_freqs,) first singular value."""
+    """H: (n_freqs, n_outputs) complex → (n_freqs,) L2 row norm of each frequency row (≡ σ₁ for SIMO use)."""
     if H.ndim == 1:
         return np.abs(H)
     return np.linalg.norm(H, axis=1)
@@ -19,11 +21,13 @@ def deduplicate_stable_poles(stab_results: list[dict], tol: float = 0.01) -> lis
     for row in stab_results:
         for k, s in enumerate(row["stability"]):
             if s == "stable_all":
-                green_poles.append({
-                    "fn_hz": float(row["fn"][k]),
-                    "xi_pct": float(row["xi"][k]) * 100.0,
-                    "source": f"order {row['order']}",
-                })
+                green_poles.append(
+                    {
+                        "fn_hz": float(row["fn"][k]),
+                        "xi_pct": float(row["xi"][k]) * 100.0,
+                        "source": f"order {row['order']}",
+                    }
+                )
     deduped: list[dict] = []
     for g in sorted(green_poles, key=lambda x: x["fn_hz"]):
         if not deduped or abs(g["fn_hz"] - deduped[-1]["fn_hz"]) / (g["fn_hz"] + 1e-9) > tol:
@@ -102,7 +106,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     A_mat = np.zeros((n_rows, n_cols))
 
     for o in range(n_out):
-        row_r = slice(o * n_freqs, (o + 1) * n_freqs)               # real block rows
+        row_r = slice(o * n_freqs, (o + 1) * n_freqs)  # real block rows
         row_i = slice((n_out + o) * n_freqs, (n_out + o + 1) * n_freqs)  # imag block rows
         num_cols = slice(o * (n_order + 1), (o + 1) * (n_order + 1))
 
@@ -111,7 +115,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
         A_mat[row_i, num_cols] = Z.imag
 
         # Denominator block: -H_o * Z[:,1..n_order]  (alpha_0=1 → rhs contribution)
-        HZ = H[:, o:o+1] * Z[:, 1:]  # (n_freqs, n_order)
+        HZ = H[:, o : o + 1] * Z[:, 1:]  # (n_freqs, n_order)
         A_mat[row_r, n_num_cols:] = -HZ.real
         A_mat[row_i, n_num_cols:] = -HZ.imag
 
@@ -119,8 +123,8 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     rhs = np.zeros(n_rows)
     for o in range(n_out):
         HZ0 = H[:, o] * Z[:, 0]
-        rhs[o * n_freqs:(o + 1) * n_freqs] = HZ0.real
-        rhs[(n_out + o) * n_freqs:(n_out + o + 1) * n_freqs] = HZ0.imag
+        rhs[o * n_freqs : (o + 1) * n_freqs] = HZ0.real
+        rhs[(n_out + o) * n_freqs : (n_out + o + 1) * n_freqs] = HZ0.imag
 
     sol, *_ = np.linalg.lstsq(A_mat, rhs, rcond=None)
     alpha = np.concatenate([[1.0], sol[n_num_cols:]])  # monic: alpha_0 = 1
@@ -135,9 +139,7 @@ def plscf_poles(H: np.ndarray, freqs: np.ndarray, n_order: int) -> np.ndarray:
     return s_poles[mask]
 
 
-def era_poles(
-    H: np.ndarray, freqs: np.ndarray, n_order: int, fs: float
-) -> tuple[np.ndarray, np.ndarray]:
+def era_poles(H: np.ndarray, freqs: np.ndarray, n_order: int, fs: float) -> tuple[np.ndarray, np.ndarray]:
     """
     ERA for one model order.
     H: (n_freqs, n_outputs) complex — H1 FRF matrix
@@ -169,7 +171,7 @@ def era_poles(
             for j in range(s):
                 t = i + j + offset
                 if t < n_t:
-                    mat[i * n_out:(i + 1) * n_out, j] = irf_data[t]
+                    mat[i * n_out : (i + 1) * n_out, j] = irf_data[t]
         return mat
 
     H0 = _hankel(irf, 0)
@@ -225,6 +227,7 @@ def build_stability_table(
     orders = range(2, max_order + 1, 2)
     results = []
     prev = None
+    _residue_warn_count = 0
 
     for n in orders:
         try:
@@ -235,21 +238,40 @@ def build_stability_table(
                 # Lightweight residue extraction for MAC computation
                 if len(poles) > 0:
                     try:
-                        res = extract_residues(H, freqs, poles)
+                        with warnings.catch_warnings(record=True) as _w:
+                            warnings.simplefilter("always")
+                            res = extract_residues(H, freqs, poles)
                         mshapes = res.T  # (n_poles, n_out) → transpose for MAC use
+                        _residue_warn_count += sum(1 for _ww in _w if issubclass(_ww.category, RuntimeWarning))
                     except Exception:
                         mshapes = np.ones((len(poles), H.shape[1]), dtype=complex)
                 else:
                     mshapes = np.zeros((0, H.shape[1]), dtype=complex)
         except Exception:
-            results.append({"order": n, "poles": np.array([]), "fn": np.array([]),
-                            "xi": np.array([]), "stability": [], "mode_shapes": np.zeros((0, H.shape[1]))})
+            results.append(
+                {
+                    "order": n,
+                    "poles": np.array([]),
+                    "fn": np.array([]),
+                    "xi": np.array([]),
+                    "stability": [],
+                    "mode_shapes": np.zeros((0, H.shape[1])),
+                }
+            )
             prev = None
             continue
 
         if len(poles) == 0:
-            results.append({"order": n, "poles": poles, "fn": np.array([]),
-                            "xi": np.array([]), "stability": [], "mode_shapes": mshapes})
+            results.append(
+                {
+                    "order": n,
+                    "poles": poles,
+                    "fn": np.array([]),
+                    "xi": np.array([]),
+                    "stability": [],
+                    "mode_shapes": mshapes,
+                }
+            )
             prev = None
             continue
 
@@ -281,16 +303,25 @@ def build_stability_table(
             else:
                 stability.append("stable_fd")
 
-        results.append({
-            "order": n,
-            "poles": poles,
-            "fn": fn,
-            "xi": xi,
-            "stability": stability,
-            "mode_shapes": mshapes,
-        })
+        results.append(
+            {
+                "order": n,
+                "poles": poles,
+                "fn": fn,
+                "xi": xi,
+                "stability": stability,
+                "mode_shapes": mshapes,
+            }
+        )
         prev = results[-1]
 
+    if _residue_warn_count > 0:
+        warnings.warn(
+            f"build_stability_table: residue fit was ill-conditioned at one or more model orders "
+            f"({_residue_warn_count} occurrences). Widen the frequency band or reduce max model order.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return results
 
 
@@ -308,14 +339,20 @@ def extract_residues(H: np.ndarray, freqs: np.ndarray, poles: np.ndarray) -> np.
     jw = 1j * omega[:, None]  # (n_freqs, 1)
     Phi = 1.0 / (jw - poles[None, :]) + 1.0 / (jw - poles.conj()[None, :])  # (n_freqs, n_modes)
 
+    if H.shape[0] < 2 * len(poles):
+        warnings.warn(
+            f"extract_residues: n_freqs ({H.shape[0]}) < 2×n_modes ({2 * len(poles)}); "
+            "residue fit may be ill-conditioned.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
     # Complex least-squares: residues are complex (encode mode-shape amplitude+phase)
     residues, *_ = np.linalg.lstsq(Phi, H, rcond=None)  # (n_modes, n_out) complex
     return residues.T  # (n_out, n_modes)
 
 
-def synthesize_frf(
-    freqs: np.ndarray, poles: np.ndarray, residues: np.ndarray
-) -> np.ndarray:
+def synthesize_frf(freqs: np.ndarray, poles: np.ndarray, residues: np.ndarray) -> np.ndarray:
     """
     Synthesise FRF from poles and residues.
     residues: (n_outputs, n_modes) complex
@@ -334,3 +371,79 @@ def modal_fit_nmse(H_measured: np.ndarray, H_syn: np.ndarray) -> np.ndarray:
     err = H_measured - H_syn
     nmse = np.sum(np.abs(err) ** 2, axis=0) / (np.sum(np.abs(H_measured) ** 2, axis=0) + 1e-30)
     return 10.0 * np.log10(nmse + 1e-30)
+
+
+def fdd_svd(Syy: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """SVD of the output spectral matrix at each frequency line.
+
+    Syy : (n_freqs, n_out, n_out) complex
+    Returns : (sv (n_freqs, n_out), svecs (n_freqs, n_out, n_out))
+        sv    — singular values, first column is the Power CMIF
+        svecs — left singular vectors; svecs[k, :, r] is the mode-shape
+                estimate at frequency k for singular value r
+    """
+    n_freqs, n_out, _ = Syy.shape
+    sv = np.zeros((n_freqs, n_out))
+    svecs = np.zeros((n_freqs, n_out, n_out), dtype=complex)
+    for k in range(n_freqs):
+        U, s, _ = np.linalg.svd(Syy[k])
+        sv[k] = s
+        svecs[k] = U
+    return sv, svecs
+
+
+def fdd_damping(sv1: np.ndarray, freqs: np.ndarray, peak_idx: int) -> tuple[float, float, float]:
+    """Half-power bandwidth damping estimate for one FDD peak.
+
+    sv1      : (n_freqs,) first singular values (linear scale, not dB)
+    peak_idx : index of the peak in freqs / sv1
+    Returns  : (xi_pct, f_a, f_b)
+        xi_pct — damping ratio in percent
+        f_a    — lower half-power frequency (Hz)
+        f_b    — upper half-power frequency (Hz)
+    """
+    half_power = sv1[peak_idx] / 2.0
+
+    # Lower half-power frequency
+    f_a = float(freqs[0])
+    for k in range(peak_idx - 1, -1, -1):
+        if sv1[k] <= half_power:
+            # Linear interpolation between k and k+1
+            df = freqs[k + 1] - freqs[k]
+            ds = sv1[k + 1] - sv1[k]
+            f_a = float(freqs[k] + (half_power - sv1[k]) / ds * df) if ds != 0 else float(freqs[k])
+            break
+
+    # Upper half-power frequency
+    f_b = float(freqs[-1])
+    found_upper = False
+    for k in range(peak_idx + 1, len(sv1)):
+        if sv1[k] <= half_power:
+            df = freqs[k] - freqs[k - 1]
+            ds = sv1[k] - sv1[k - 1]
+            f_b = float(freqs[k - 1] + (half_power - sv1[k - 1]) / ds * df) if ds != 0 else float(freqs[k])
+            found_upper = True
+            break
+    if not found_upper:
+        return 0.0, float(freqs[0]), float(freqs[-1])
+
+    fn = float(freqs[peak_idx])
+    xi_pct = (f_b - f_a) / (2.0 * fn) * 100.0 if fn > 0 else 0.0
+    return xi_pct, f_a, f_b
+
+
+def compute_mac(phi_ref: np.ndarray, phi_comp: np.ndarray) -> np.ndarray:
+    """MAC matrix between two sets of mode shapes.
+
+    Parameters
+    ----------
+    phi_ref  : (n_dof, n_ref)  — reference (FE) mode shapes, real or complex
+    phi_comp : (n_dof, n_comp) — comparison (exp) mode shapes, real or complex
+
+    Returns
+    -------
+    mac : (n_ref, n_comp) MAC values in [0, 1]
+    """
+    num = np.abs(phi_ref.conj().T @ phi_comp) ** 2
+    denom = np.sum(np.abs(phi_ref) ** 2, axis=0)[:, None] * np.sum(np.abs(phi_comp) ** 2, axis=0)[None, :]
+    return num / np.maximum(denom, np.finfo(float).tiny)

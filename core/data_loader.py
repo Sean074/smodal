@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 
 # Expected time column names, checked in order
 _TIME_COLUMN_CANDIDATES = ["time", "Time", "TIME", "t", "T"]
@@ -65,16 +64,18 @@ def compute_summary(df: pd.DataFrame, input_ch: str, output_chs: list[str]) -> l
     rows = []
     for ch in [input_ch] + list(output_chs):
         signal = df[ch].values
-        rows.append({
-            "Channel": ch,
-            "Type": "Input" if ch == input_ch else "Output",
-            "Samples": n_samples,
-            "Sample Rate (Hz)": round(fs, 2),
-            "Duration (s)": round(duration, 4),
-            "Min Time (s)": round(float(time[0]), 6),
-            "Max Time (s)": round(float(time[-1]), 6),
-            "Min Value": round(float(signal.min()), 6),
-            "Max Value": round(float(signal.max()), 6),
-            "RMS": round(float(np.sqrt(np.mean(signal**2))), 6),
-        })
+        rows.append(
+            {
+                "Channel": ch,
+                "Type": "Input" if ch == input_ch else "Output",
+                "Samples": n_samples,
+                "Sample Rate (Hz)": round(fs, 2),
+                "Duration (s)": round(duration, 4),
+                "Min Time (s)": round(float(time[0]), 6),
+                "Max Time (s)": round(float(time[-1]), 6),
+                "Min Value": round(float(signal.min()), 6),
+                "Max Value": round(float(signal.max()), 6),
+                "RMS": round(float(np.sqrt(np.mean(signal**2))), 6),
+            }
+        )
     return rows

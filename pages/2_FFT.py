@@ -1,10 +1,16 @@
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import streamlit as st
+from plotly.subplots import make_subplots
+
 from core.spectral import compute_fft, compute_psd
 
-st.set_page_config(page_title="FFT", layout="wide")
+st.set_page_config(page_title="smodal · FFT", layout="wide")
+
+from core import brand
+
+brand.page_header()
+
 st.title("FFT")
 
 if st.session_state.get("df") is None:
@@ -55,9 +61,8 @@ c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 1, 2])
 
 with c1:
     default_channels = (
-        ([st.session_state.get("input_channel")] if st.session_state.get("input_channel") else [])
-        + list(st.session_state.get("output_channels") or [])
-    )
+        [st.session_state.get("input_channel")] if st.session_state.get("input_channel") else []
+    ) + list(st.session_state.get("output_channels") or [])
     default_channels = [c for c in default_channels if c in all_channels] or all_channels[:1]
     selected_channels = st.multiselect("Channels", options=all_channels, default=default_channels)
 
@@ -161,6 +166,7 @@ if compute_btn:
             "ffts": _ffts,
             "window": window,
             "channels": selected_channels,
+            "n_samples": len(df[selected_channels[0]]),
         }
     else:
         _psds: dict[str, np.ndarray] = {}
@@ -216,7 +222,8 @@ if method == "Single FFT":
     f_max = float(freqs[-1])
     f_range = st.slider(
         "Frequency range (Hz)",
-        min_value=f_min, max_value=f_max,
+        min_value=f_min,
+        max_value=f_max,
         value=(f_min, f_max),
         step=round((f_max - f_min) / 1000, 4),
     )
@@ -235,7 +242,8 @@ if method == "Single FFT":
         subplot_titles += [f"{ch} — {top_label}", f"{ch} — {bot_label}"]
 
     fig = make_subplots(
-        rows=n_ch * 2, cols=1,
+        rows=n_ch * 2,
+        cols=1,
         shared_xaxes=True,
         subplot_titles=subplot_titles,
         vertical_spacing=0.05,
@@ -255,17 +263,20 @@ if method == "Single FFT":
 
         fig.add_trace(
             go.Scatter(x=f_plot, y=y_top, mode="lines", name=ch, showlegend=False),
-            row=row_top, col=1,
+            row=row_top,
+            col=1,
         )
         fig.add_trace(
             go.Scatter(x=f_plot, y=y_bot, mode="lines", name=ch, showlegend=False),
-            row=row_bot, col=1,
+            row=row_bot,
+            col=1,
         )
 
         fig.update_yaxes(
             title_text=top_label,
             type="log" if log_y and display_mode == "Gain/Phase" else "linear",
-            row=row_top, col=1,
+            row=row_top,
+            col=1,
         )
         fig.update_yaxes(title_text=bot_label, row=row_bot, col=1)
 
@@ -303,7 +314,8 @@ else:  # Welch
     f_max = float(freqs[-1])
     f_range = st.slider(
         "Frequency range (Hz)",
-        min_value=f_min, max_value=f_max,
+        min_value=f_min,
+        max_value=f_max,
         value=(f_min, f_max),
         step=round((f_max - f_min) / 1000, 4),
     )
@@ -314,7 +326,8 @@ else:  # Welch
     n_ch = len(plot_channels)
     subplot_titles = [f"{ch} — PSD" for ch in plot_channels]
     fig = make_subplots(
-        rows=n_ch, cols=1,
+        rows=n_ch,
+        cols=1,
         shared_xaxes=True,
         subplot_titles=subplot_titles,
         vertical_spacing=0.08,
@@ -324,12 +337,14 @@ else:  # Welch
         y = psds[ch][freq_mask]
         fig.add_trace(
             go.Scatter(x=f_plot, y=y, mode="lines", name=ch, showlegend=False),
-            row=i + 1, col=1,
+            row=i + 1,
+            col=1,
         )
         fig.update_yaxes(
             title_text="PSD",
             type="log" if log_y else "linear",
-            row=i + 1, col=1,
+            row=i + 1,
+            col=1,
         )
 
     fig.update_xaxes(title_text="Frequency (Hz)", row=n_ch, col=1)

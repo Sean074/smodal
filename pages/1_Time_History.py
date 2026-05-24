@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -9,10 +10,15 @@ import streamlit as st
 from plotly.subplots import make_subplots
 from scipy.signal import sosfiltfilt, sosfreqz
 
-from core.data_loader import load_csv, compute_summary
+from core.data_loader import compute_summary, load_csv
 from core.preprocess import build_butter_sos
 
-st.set_page_config(page_title="Time History", layout="wide")
+st.set_page_config(page_title="smodal · Time History", layout="wide")
+
+from core import brand
+
+brand.page_header()
+
 st.title("Time History")
 
 # ---------------------------------------------------------------------------
@@ -24,9 +30,7 @@ st.caption(
     "Multiple files may be merged if they share the same time axis."
 )
 
-uploaded_files = st.file_uploader(
-    "Select data file(s)", type=["csv"], accept_multiple_files=True, key="th_upload"
-)
+uploaded_files = st.file_uploader("Select data file(s)", type=["csv"], accept_multiple_files=True, key="th_upload")
 
 if uploaded_files:
     file_names = sorted(f.name for f in uploaded_files)
@@ -57,9 +61,17 @@ if uploaded_files:
             st.session_state["input_channel"] = None
             st.session_state["output_channels"] = []
             st.session_state["sample_rate"] = None
-            for k in ["processed_df", "processing_info", "fft_results",
-                      "spectral_results", "si_H_mat", "si_freqs",
-                      "si_cmif", "si_stability_table", "modal_results"]:
+            for k in [
+                "processed_df",
+                "processing_info",
+                "fft_results",
+                "spectral_results",
+                "si_H_mat",
+                "si_freqs",
+                "si_cmif",
+                "si_stability_table",
+                "modal_results",
+            ]:
                 st.session_state.pop(k, None)
 
 df = st.session_state.get("df")
@@ -82,6 +94,7 @@ with col_a:
         "Input channel (force / excitation)",
         channels,
         index=channels.index(current_input) if current_input in channels else 0,
+        key="th_input_channel",
     )
     st.session_state["input_channel"] = input_ch
 
@@ -93,6 +106,7 @@ with col_b:
         "Output channels (accelerometers / responses)",
         available_outputs,
         default=default_outputs,
+        key="th_output_channels",
     )
     st.session_state["output_channels"] = output_chs
 
@@ -112,9 +126,7 @@ if output_chs:
 # ---------------------------------------------------------------------------
 st.markdown("---")
 st.header("Analysis Log")
-st.session_state["comment"] = st.text_area(
-    "Analysis Comment", value=st.session_state.get("comment", ""), height=80
-)
+st.session_state["comment"] = st.text_area("Analysis Comment", value=st.session_state.get("comment", ""), height=80)
 
 if st.button("Save Analysis Log", type="primary"):
     if not summary_rows:
@@ -128,7 +140,7 @@ if st.button("Save Analysis Log", type="primary"):
             "comment": st.session_state.get("comment", ""),
             "data_summary": summary_rows,
         }
-        safe_name = (st.session_state.get("analysis_name") or "analysis").replace(" ", "_")
+        safe_name = re.sub(r"[^A-Za-z0-9_\-]", "_", (st.session_state.get("analysis_name") or "analysis"))[:64]
         log_path = Path("data/output") / f"{safe_name}_log.json"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text(json.dumps(log, indent=2))
@@ -348,14 +360,14 @@ if sos is not None and not filter_error:
             subplot_titles=("Gain (dB)", "Phase (°)"),
         )
         fig_fr.add_trace(
-            go.Scatter(x=w, y=gain_db, mode="lines",
-                       line=dict(color="#1f77b4", width=1.5), showlegend=False),
-            row=1, col=1,
+            go.Scatter(x=w, y=gain_db, mode="lines", line=dict(color="#1f77b4", width=1.5), showlegend=False),
+            row=1,
+            col=1,
         )
         fig_fr.add_trace(
-            go.Scatter(x=w, y=phase_deg, mode="lines",
-                       line=dict(color="#ff7f0e", width=1.5), showlegend=False),
-            row=2, col=1,
+            go.Scatter(x=w, y=phase_deg, mode="lines", line=dict(color="#ff7f0e", width=1.5), showlegend=False),
+            row=2,
+            col=1,
         )
         fig_fr.update_xaxes(title_text="Frequency (Hz)", row=2, col=1)
         fig_fr.update_yaxes(title_text="Gain (dB)", row=1, col=1)
@@ -364,8 +376,7 @@ if sos is not None and not filter_error:
             height=420,
             margin=dict(t=40, b=40, l=60, r=20),
             title_text=f"{filter_type}  |  order {order}  |  "
-                       + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass")
-                          else f"{f_lo}–{f_hi} Hz"),
+            + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass") else f"{f_lo}–{f_hi} Hz"),
         )
         st.plotly_chart(fig_fr, use_container_width=True)
 
@@ -394,14 +405,16 @@ with st.expander("Channel statistics (visible window)"):
     rows = []
     for ch in selected_channels:
         sig = df[ch].values[mask]
-        rows.append({
-            "Channel": ch,
-            "Type": "Input" if ch == input_ch else "Output",
-            "Min": round(float(sig.min()), 6),
-            "Max": round(float(sig.max()), 6),
-            "Mean": round(float(sig.mean()), 6),
-            "RMS": round(float(np.sqrt(np.mean(sig**2))), 6),
-            "Std Dev": round(float(sig.std()), 6),
-            "Samples": int(sig.size),
-        })
+        rows.append(
+            {
+                "Channel": ch,
+                "Type": "Input" if ch == input_ch else "Output",
+                "Min": round(float(sig.min()), 6),
+                "Max": round(float(sig.max()), 6),
+                "Mean": round(float(sig.mean()), 6),
+                "RMS": round(float(np.sqrt(np.mean(sig**2))), 6),
+                "Std Dev": round(float(sig.std()), 6),
+                "Samples": int(sig.size),
+            }
+        )
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

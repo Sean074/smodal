@@ -10,7 +10,7 @@
 | 3 | Spectral Analysis | Implemented |
 | 4 | System Identification (SIMO EMA) | Implemented |
 | 5 | MIMO EMA (Multi-Reference System Identification) | Implemented |
-| 6 | Modal Assurance Criteria (MAC) | Stub |
+| 6 | Modal Assurance Criteria (MAC) | Implemented |
 | 7 | Wireframe Mode Shape | Implemented |
 
 ---
@@ -185,6 +185,8 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - Synthesised — dashed red line.
   - Optional individual modal contributions — thin dotted lines (toggled by checkbox).
 - NMSE (dB) per channel appended to the subplot title annotation.
+- **Fit quality (NMSE per channel)** expander below the FRF overlay: table with columns Channel, NMSE (dB), and Quality per output channel. A caption explains the metric: NMSE = 10 log₁₀(error energy / signal energy); lower is better. Quality labels: Excellent (< −30 dB), Good (−30 to −20 dB), Acceptable (−20 to −10 dB), Poor (> −10 dB).
+- **Rank-deficiency warning:** if the frequency band has fewer lines than `2 × n_modes`, an `st.warning` fires before extraction and `extract_residues` emits a `RuntimeWarning` to the server log.
 
 #### Export
 - Table of identified modes (mode #, fn Hz, ξ %, amplitude and phase per channel) shown and available as downloadable CSV named `<analysis_name>_modal_results.csv`.
@@ -368,6 +370,8 @@ Multiple coherence for output channel _k_:
   - Synthesised — dashed red line.
   - Optional individual modal contributions — thin dotted lines (toggled by checkbox).
 - NMSE (dB) annotated on each magnitude subplot title.
+- **Fit quality (NMSE per channel)** expander below the FRF overlay: table with columns Channel, Run (A/B), NMSE (dB), and Quality — two rows per output channel. A caption explains the metric and scale (same as Page 4: Excellent < −30 dB, Good −30 to −20 dB, Acceptable −20 to −10 dB, Poor > −10 dB).
+- **Rank-deficiency warning:** same as Page 4 — `st.warning` fires when `n_freqs < 2 × n_modes`.
 
 #### Export
 - Table of identified modes (fn, ξ, type, amplitude and phase per output per reference) downloadable as `<analysis_name>_mimo_results.csv`.
