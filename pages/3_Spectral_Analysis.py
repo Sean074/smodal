@@ -1,9 +1,14 @@
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from scipy.signal import get_window
 import streamlit as st
 
-from core.spectral import compute_spectral_quantities, compute_welch_quantities
+from core.spectral import (
+    compute_spectral_quantities,
+    compute_welch_quantities,
+    WINDOW_SCIPY_NAMES,
+)
 
 st.set_page_config(page_title="Spectral Analysis", layout="wide")
 st.title("Spectral Analysis")
@@ -268,9 +273,19 @@ with chart_col:
             Syy_dict = {ch: ch_data[ch]["Gyy"] for ch in plot_chs}
         else:
             delta_f = sample_rate / N
-            norm = sample_rate * N
-            Sxx = 2.0 * ch_data[plot_chs[0]]["Gxx"] / norm
-            Syy_dict = {ch: 2.0 * ch_data[ch]["Gyy"] / norm for ch in plot_chs}
+            # Window power correction: W₂ = Σ w[n]² (boxcar → W₂=N, Hann → W₂≈0.375·N).
+            # Gxx already includes ×4 from one-sided amplitude correction in compute_fft,
+            # so norm = 2·fs·W₂ gives the correct one-sided PSD.
+            win_name = fft_res.get("window", "uniform") if fft_res else "uniform"
+            scipy_win = WINDOW_SCIPY_NAMES.get(win_name, "boxcar")
+            if scipy_win == "exponential":
+                _win_arr = get_window(("exponential", None, 1.0 / 8.686), N)
+            else:
+                _win_arr = get_window(scipy_win, N)
+            W2 = float(np.sum(_win_arr ** 2))
+            norm = 2 * sample_rate * W2
+            Sxx = ch_data[plot_chs[0]]["Gxx"] / norm
+            Syy_dict = {ch: ch_data[ch]["Gyy"] / norm for ch in plot_chs}
 
         y_label = "PSD (dB)" if psd_log else "PSD (unit²/Hz)"
         df_str = f"  Δf = {delta_f:.4f} Hz"

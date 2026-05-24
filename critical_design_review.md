@@ -320,7 +320,7 @@ These are addressed under [MINOR] item above.
 
 Notable coverage gaps:
 - No test for FFT one-sided amplitude amplitude correctness (would catch [MAJOR] M1)
-- No test for single-FFT PSD window normalization (would catch [MAJOR] M2)
+- ~~No test for single-FFT PSD window normalization~~ — `test_single_fft_psd_hann_window_normalization` added
 - No security test for `add_channel` expression injection ([CRITICAL] C1)
 - No test for MAC page complex-mode-shape handling ([CRITICAL] C3)
 
@@ -352,7 +352,7 @@ Notable coverage gaps:
 | Gate | Status |
 |---|---|
 | All [CRITICAL] resolved | **BLOCKED** — 2 critical items open (C1, C2) |
-| All [MAJOR] resolved | **BLOCKED** — 5 major items open |
+| All [MAJOR] resolved | **BLOCKED** — 3 major items open (M3–M5) |
 | `pytest tests/ -v` passes | ✓ 82/82 |
 | `docs/data_model.md` up to date | **BLOCKED** — see M4, and MINOR items |
 | No new [CRITICAL] introduced since last pass | N/A (first pass) |
@@ -368,8 +368,8 @@ Notable coverage gaps:
 | C1 | CRITICAL | `tools/channel_math.py` | 54 | `pd.eval(engine="python")` — code injection via user expression |
 | C2 | CRITICAL | `pages/1_Time_History.py` | 131 | Analysis log path traversal — `analysis_name` not sanitized |
 | C3 | ~~CRITICAL~~ FIXED | `pages/7_MAC.py` | 162–164 | `np.real()` removed; complex mode shapes passed directly; regression test added |
-| M1 | MAJOR | `core/spectral.py` | 35–37 | FFT one-sided amplitude not corrected (3 dB error in display) |
-| M2 | MAJOR | `pages/3_Spectral_Analysis.py` | 263–273 | Single-FFT PSD missing window power correction (up to 4.3 dB error) |
+| M1 | ~~MAJOR~~ FIXED | `core/spectral.py` | 35–37 | One-sided correction applied in compute_fft; PSD norm updated; amplitude test added |
+| M2 | ~~MAJOR~~ FIXED | `pages/3_Spectral_Analysis.py` | 263–273 | Window power W₂ correction applied; norm = 2·fs·W₂; PSD integration test added |
 | M3 | MAJOR | `pages/5_MIMO.py` | 63–67 | Sample-rate mismatch warned but not blocked |
 | M4 | MAJOR | `docs/data_model.md` | — | `oma_peak_estimates` session key undocumented |
 | M5 | MAJOR | `pages/4_SIMO.py` | 440 | Residue extraction uses full-span H not band-limited subset |

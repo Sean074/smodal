@@ -33,6 +33,12 @@ def compute_fft(
 
     windowed = signal * win
     fft_complex = np.fft.rfft(windowed)
+    # One-sided amplitude correction: interior bins carry half the physical amplitude
+    fft_complex = fft_complex.copy()
+    if n % 2 == 0:
+        fft_complex[1:-1] *= 2
+    else:
+        fft_complex[1:] *= 2
     freqs = np.fft.rfftfreq(n, d=1.0 / sample_rate)
     return freqs, fft_complex
 

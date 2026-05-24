@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 
+from scipy.signal import get_window
+
 from core.spectral import (
     compute_fft,
     compute_spectral_quantities,
     compute_welch_quantities,
     compute_output_spectral_matrix,
+    WINDOW_SCIPY_NAMES,
 )
 
 
@@ -43,6 +46,35 @@ def test_compute_spectral_quantities_zero_input(sine_signal):
     # gamma2 and H2 are not guaranteed finite when power is zero at a bin
     # (eps*eps underflows), so we only assert the guarded quantity.
     assert np.all(np.isfinite(res["H1"]))
+
+
+def test_compute_fft_amplitude_correction():
+    """After one-sided correction, |F[peak]| / N should equal the sine amplitude within 1%."""
+    A = 2.0
+    fs, duration, freq = 1000.0, 2.0, 10.0
+    t = np.arange(0, duration, 1.0 / fs)
+    signal = A * np.sin(2 * np.pi * freq * t)
+    n = len(signal)
+    _, fft_c = compute_fft(signal, fs, window="uniform")
+    peak_idx = int(np.argmax(np.abs(fft_c)))
+    assert abs(np.abs(fft_c[peak_idx]) / n - A) / A < 0.01
+
+
+def test_single_fft_psd_hann_window_normalization():
+    """Hann-windowed single-FFT PSD integrates to signal variance within 2%."""
+    fs = 1000.0
+    N = 1000  # Δf = 1 Hz; f0 = 100 Hz lands exactly on bin k0 = 100
+    t = np.arange(N) / fs
+    A = 2.0
+    sig = A * np.sin(2 * np.pi * 100.0 * t)
+    _, Sx = compute_fft(sig, fs, window="hanning")
+    Gxx = compute_spectral_quantities(Sx, Sx)["Gxx"]
+    scipy_win = WINDOW_SCIPY_NAMES.get("hanning", "boxcar")
+    win_arr = get_window(scipy_win, N)
+    W2 = float(np.sum(win_arr ** 2))
+    psd = Gxx / (2.0 * fs * W2)
+    power_est = float(np.sum(psd) * (fs / N))
+    assert abs(power_est - A ** 2 / 2) / (A ** 2 / 2) < 0.02
 
 
 def test_compute_welch_quantities_returns_expected_keys(sine_signal):
