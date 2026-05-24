@@ -40,6 +40,16 @@ classifiers = [
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
 
+# Streamlit Community Cloud auto-detects Poetry from this pyproject.toml.
+# This project is a Streamlit *application*, not an installable library —
+# tell Poetry to resolve and install the declared dependencies, but skip the
+# "install the current project" step (which fails because there is no smodal/
+# package directory matching the project name; the app code lives in core/,
+# pages/, and app.py).
+# Has no effect on local `pip install -e .` — setuptools is the local backend.
+[tool.poetry]
+package-mode = false
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["core*"]
