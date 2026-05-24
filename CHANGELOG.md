@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Public Streamlit Community Cloud deployment at <https://smodal.streamlit.app>.
+- Public Streamlit Community Cloud deployment at <https://smodal-seanomeara.streamlit.app/>.
 - Landing-page caption — one-sentence app description with a GitHub link for cold visitors.
 - `.streamlit/config.toml` settings tuned for the hosted deploy (`maxUploadSize`, telemetry disabled).
 - README deploy badge linking to the live app.
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - README installation instructions now use the new repo name (`cd smodal` and the issue-tracker URL point at `Sean074/smodal`). The v1.0.0 tag was cut one commit early and ships with the pre-rename strings; main is correct.
+- Streamlit Community Cloud deploy failed when Poetry tried to install the project itself (`No file/folder found for package smodal`); added `[tool.poetry] package-mode = false` so Poetry resolves dependencies only.
 
 ### Removed
 
