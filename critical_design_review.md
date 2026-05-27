@@ -107,23 +107,9 @@ except Exception as exc:
 
 ---
 
-**[P6-M1] `core/data_loader.py:54` — `compute_sample_rate` comment says "warn" on >1% jitter but body is `pass`**
+~~**[P6-M1] `core/data_loader.py:54` — `compute_sample_rate` comment says "warn" on >1% jitter but body is `pass`**~~
 
-WHY: Comment at line 52 reads "More than 1% jitter — warn but still return estimate". The body is
-`pass`. Engineers with non-uniform or resampled data get no indication their sample rate estimate
-may be degraded. Downstream spectral analysis (FFT bin spacing, Welch window length) uses this
-estimate without qualification.
-
-FIX:
-```python
-if dt_std / dt_mean > 0.01:
-    warnings.warn(
-        f"Sample rate jitter {dt_std / dt_mean:.1%} exceeds 1% — "
-        "sample rate estimate may be inaccurate",
-        UserWarning,
-        stacklevel=2,
-    )
-```
+FIXED: replaced `pass` with `warnings.warn(...)` emitting `UserWarning` with jitter percentage. `warnings` import added.
 
 ---
 
@@ -168,5 +154,6 @@ update to `5 - Production/Stable` when v1.1.0 ships.
 | No new [CRITICAL] introduced since last review pass | Pending |
 
 | P6-C1 | ~~CRITICAL~~ FIXED | `core/sysid.py:246,250` | `except Exception` silently substituted unit-vector mode shapes; outer except swallowed order failures silently | FIXED — zeros substituted; both sites emit `RuntimeWarning`; `_residue_warn_count` incremented |
+| P6-M1 | ~~MINOR~~ FIXED | `core/data_loader.py:54` | `compute_sample_rate` pass-instead-of-warn on >1% jitter | FIXED — `UserWarning` emitted with jitter percentage |
 
 **Pass 6 verdict: IN PROGRESS**
