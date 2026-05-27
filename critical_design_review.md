@@ -174,4 +174,6 @@ update to `5 - Production/Stable` when v1.1.0 ships.
 | `docs/data_model.md` up to date | Pending |
 | No new [CRITICAL] introduced since last review pass | Pending |
 
+| P6-C1 | ~~CRITICAL~~ FIXED | `core/sysid.py:246,250` | `except Exception` silently substituted unit-vector mode shapes; outer except swallowed order failures silently | FIXED — zeros substituted; both sites emit `RuntimeWarning`; `_residue_warn_count` incremented |
+
 **Pass 6 verdict: IN PROGRESS**
