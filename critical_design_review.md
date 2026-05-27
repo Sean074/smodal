@@ -37,7 +37,7 @@ Test suite at close of Pass 5: **103 passed, 0 failed**.
 | NW3 | NIT | `pages/7_MAC.py:79` | Bare `[]` access on `mimo_modal_results`/`modal_results` | FIXED |
 | P4-N1 | MINOR | `core/mimo.py:43` | Latent `NameError` when `sel_outputs=[]` in Welch branch | CLOSED (pre-existing fix) |
 | P4-N2 | NIT | `docs/data_model.md` | `mimo_frf_est_used` session key missing from table | FIXED |
-| P5-N1 | MINOR | `core/geometry.py:276` | `_RE_FLOAT` regex drops F06 floats with unsigned exponent (e.g., `1.234E3`) | **OPEN → carried to Pass 6** |
+| P5-N1 | MINOR | `core/geometry.py:276` | `_RE_FLOAT` regex drops F06 floats with unsigned exponent (e.g., `1.234E3`) | FIXED (Pass 6 as P6-M2) |
 | P5-N2 | NIT | `pyproject.toml:56` | `E402` ruff ignore project-wide instead of scoped to `pages/` | **OPEN → carried to Pass 6** |
 
 ---
@@ -127,17 +127,10 @@ if dt_std / dt_mean > 0.01:
 
 ---
 
-**[P6-M2] `core/geometry.py:276` — `_RE_FLOAT` regex requires explicit exponent sign (carried from P5-N1)**
+~~**[P6-M2] `core/geometry.py:276` — `_RE_FLOAT` regex requires explicit exponent sign (carried from P5-N1)**~~
 
-WHY: `_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]\d+", re.IGNORECASE)` — the `[+-]` before
-the exponent digits has no `?` quantifier. NASTRAN F06 files from some solvers write `1.234E3`
-(no explicit `+`). Such values match nothing; `re.findall` returns `[]`; the DOF displacement is
-silently treated as zero. Mode shapes for affected DOFs are wrong with no error or warning.
-
-FIX:
-```python
-_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]?\d+", re.IGNORECASE)
-```
+FIXED: added `?` to `[+-]` before the exponent digits → `[Ee][+-]?\d+`. NASTRAN floats with
+unsigned exponents (e.g. `1.234E3`) now parse correctly instead of silently resolving to zero.
 
 ---
 
