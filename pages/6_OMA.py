@@ -6,7 +6,7 @@ from plotly.subplots import make_subplots
 
 from core.data_loader import compute_sample_rate, load_csv
 from core.preprocess import trim_and_filter
-from core.spectral import compute_output_spectral_matrix
+from core.spectral import band_coherence_stats, compute_output_spectral_matrix
 from core.sysid import cmif_peak_estimates, fdd_damping, fdd_svd
 
 st.set_page_config(page_title="smodal · OMA", layout="wide")
@@ -237,6 +237,32 @@ with ctrl_col:
         key="oma_frange",
     )
 
+    # ── Coherence quality gate (output-output) ────────────────────────────────
+    _oma_Syy = st.session_state.get("oma_Syy")
+    _oma_freqs_cached = st.session_state.get("oma_freqs")
+    _oma_coh_red_intervals: list = []
+    _oma_coh_yellow_intervals: list = []
+    if _oma_Syy is not None and _oma_freqs_cached is not None and _oma_Syy.shape[1] >= 2:
+        _Sii = np.real(_oma_Syy[:, 0, 0])
+        _Sjj = np.real(_oma_Syy[:, 1, 1])
+        _Sij = _oma_Syy[:, 0, 1]
+        _g2_oma = np.abs(_Sij) ** 2 / (np.maximum(_Sii, eps) * np.maximum(_Sjj, eps))
+        _g2_oma = np.clip(_g2_oma, 0.0, 1.0)
+        _oma_70 = band_coherence_stats(_g2_oma, _oma_freqs_cached, f_min, f_max, threshold=0.7)
+        _oma_85 = band_coherence_stats(_g2_oma, _oma_freqs_cached, f_min, f_max, threshold=0.85)
+        _oma_coh_red_intervals = _oma_70["low_bands"]
+        _oma_coh_yellow_intervals = _oma_85["low_bands"]
+        if not _oma_70["passes"]:
+            st.warning(
+                f"Low output-output coherence (γ² < 0.7) covers {_oma_70['pct_low']:.0%} of the analysis band "
+                f"(mean γ² = {_oma_70['mean_coh']:.2f}). "
+                "Channels may be dominated by uncorrelated noise in this region."
+            )
+        elif _oma_85["pct_low"] > 0:
+            st.info(
+                f"Moderate output-output coherence (γ² < 0.85) covers {_oma_85['pct_low']:.0%} of the analysis band."
+            )
+
     build_btn = st.button("Build Power CMIF", type="primary", use_container_width=True, key="oma_build")
 
     st.divider()
@@ -454,6 +480,17 @@ with chart_col:
                 title="Power CMIF — Singular Values of S_yy",
                 legend=dict(orientation="h", y=-0.15),
             )
+            for _f_lo, _f_hi in _oma_coh_yellow_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(255,200,0,0.15)", layer="below", line_width=0)
+            for _f_lo, _f_hi in _oma_coh_red_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(220,50,50,0.20)", layer="below", line_width=0)
+            if _oma_coh_red_intervals:
+                fig.add_annotation(
+                    text="⚠ Low output-output coherence (γ²<0.7)",
+                    x=0.01, y=0.99, xref="paper", yref="paper",
+                    showarrow=False, font=dict(size=10, color="darkred"),
+                    bgcolor="rgba(255,240,240,0.8)", bordercolor="darkred", borderwidth=1,
+                )
             st.plotly_chart(fig, use_container_width=True)
             st.caption(
                 "σ₁ peaks indicate natural frequencies. "

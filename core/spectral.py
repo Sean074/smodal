@@ -174,3 +174,46 @@ def compute_welch_quantities(
     gamma2 = np.where(np.isfinite(gamma2), gamma2, 0.0)
 
     return dict(freqs=freqs, Gxx=Gxx, Gyy=Gyy, Gyx=Gyx, Gxy=Gxy, H1=H1, H2=H2, Hv=Hv, gamma2=gamma2)
+
+
+def _contiguous_intervals(below: np.ndarray, freqs: np.ndarray) -> list[tuple[float, float]]:
+    intervals: list[tuple[float, float]] = []
+    in_interval = False
+    f_lo = 0.0
+    for i, (f, b) in enumerate(zip(freqs, below)):
+        if b and not in_interval:
+            f_lo = float(f)
+            in_interval = True
+        elif not b and in_interval:
+            intervals.append((f_lo, float(freqs[i - 1])))
+            in_interval = False
+    if in_interval:
+        intervals.append((f_lo, float(freqs[-1])))
+    return intervals
+
+
+def band_coherence_stats(
+    gamma2: np.ndarray,
+    freqs: np.ndarray,
+    f_min: float,
+    f_max: float,
+    threshold: float = 0.7,
+) -> dict:
+    """Return coherence quality summary for a frequency band.
+
+    Returns dict with keys:
+        pct_low   : fraction [0, 1] of lines in band with γ² < threshold
+        mean_coh  : mean γ² in band
+        low_bands : list of (f_lo, f_hi) contiguous sub-bands below threshold
+        passes    : True when pct_low < 0.10
+    """
+    band = (freqs >= f_min) & (freqs <= f_max)
+    g2_band = gamma2[band]
+    f_band = freqs[band]
+    if len(g2_band) == 0:
+        return {"pct_low": 0.0, "mean_coh": 1.0, "low_bands": [], "passes": True}
+    below = g2_band < threshold
+    pct_low = float(np.mean(below))
+    mean_coh = float(np.mean(g2_band))
+    low_bands = _contiguous_intervals(below, f_band)
+    return {"pct_low": pct_low, "mean_coh": mean_coh, "low_bands": low_bands, "passes": pct_low < 0.10}

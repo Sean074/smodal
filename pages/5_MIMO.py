@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 
 from core.data_loader import compute_sample_rate, load_csv
 from core.mimo import compute_mimo_cmif, compute_mimo_frfs
+from core.spectral import band_coherence_stats
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
 from core.sysid import (
@@ -379,6 +380,37 @@ with ctrl_col:
         key="mimo_frange",
     )
 
+    # ── Coherence quality gate ─────────────────────────────────────────────────
+    _spec_res = st.session_state.get("spectral_results")
+    _coh_red_intervals: list = []
+    _coh_yellow_intervals: list = []
+    if _spec_res is not None:
+        _freqs_spec = _spec_res.get("freqs")
+        _g2_arrays = [
+            cd["gamma2"]
+            for cd in _spec_res.get("channels", {}).values()
+            if cd.get("gamma2") is not None
+        ]
+        if _g2_arrays and _freqs_spec is not None:
+            _min_len = min(len(g) for g in _g2_arrays)
+            _g2_min = np.min(np.stack([g[:_min_len] for g in _g2_arrays], axis=0), axis=0)
+            _freqs_aligned = _freqs_spec[:_min_len]
+            _stats_70 = band_coherence_stats(_g2_min, _freqs_aligned, f_min_hz, f_max_hz, threshold=0.7)
+            _stats_85 = band_coherence_stats(_g2_min, _freqs_aligned, f_min_hz, f_max_hz, threshold=0.85)
+            _coh_red_intervals = _stats_70["low_bands"]
+            _coh_yellow_intervals = _stats_85["low_bands"]
+            if not _stats_70["passes"]:
+                st.warning(
+                    f"Low coherence (γ² < 0.7) covers {_stats_70['pct_low']:.0%} of the analysis band "
+                    f"(mean γ² = {_stats_70['mean_coh']:.2f}). "
+                    "Modes extracted here may not reflect physical resonances."
+                )
+            elif _stats_85["pct_low"] > 0:
+                st.info(
+                    f"Moderate coherence (γ² < 0.85) covers {_stats_85['pct_low']:.0%} of the analysis band. "
+                    "Interpret results with care."
+                )
+
     max_order = st.slider("Max model order", min_value=4, max_value=100, value=40, step=2, key="mimo_max_order")
 
     with st.expander("Stability thresholds"):
@@ -625,6 +657,10 @@ with chart_col:
                 title="SVD-CMIF — Multi-Reference",
                 legend=dict(orientation="h", y=-0.18),
             )
+            for _f_lo, _f_hi in _coh_yellow_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(255,200,0,0.15)", layer="below", line_width=0)
+            for _f_lo, _f_hi in _coh_red_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(220,50,50,0.20)", layer="below", line_width=0)
             st.plotly_chart(fig, use_container_width=True)
             st.caption("σ₁ shows all modes. σ₂ helps resolve repeated or closely-spaced modes.")
 
@@ -690,6 +726,17 @@ with chart_col:
                 legend=dict(orientation="h", y=-0.12),
                 title="Stability Diagram — pLSCF (Multi-Reference)",
             )
+            for _f_lo, _f_hi in _coh_yellow_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(255,200,0,0.15)", layer="below", line_width=0)
+            for _f_lo, _f_hi in _coh_red_intervals:
+                fig.add_vrect(x0=_f_lo, x1=_f_hi, fillcolor="rgba(220,50,50,0.20)", layer="below", line_width=0)
+            if _coh_red_intervals:
+                fig.add_annotation(
+                    text="⚠ Low coherence (γ²<0.7)",
+                    x=0.01, y=0.99, xref="paper", yref="paper",
+                    showarrow=False, font=dict(size=10, color="darkred"),
+                    bgcolor="rgba(255,240,240,0.8)", bordercolor="darkred", borderwidth=1,
+                )
             st.plotly_chart(fig, use_container_width=True)
 
     # ── Mode Shapes ───────────────────────────────────────────────────────────

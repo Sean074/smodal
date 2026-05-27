@@ -148,6 +148,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - **FRF estimator** radio: H1 / H2 / Hv (default H1).
 - **Output channels** multiselect (defaults to all available output channels).
 - **Frequency range** slider (analysis band, 0 Hz to Nyquist).
+- **Coherence quality gate** (inline, after the frequency slider): reads `spectral_results` from Page 3 if present; takes element-wise minimum γ² across all output channels within the selected band. Emits `st.warning` when ≥ 10 % of the band has γ² < 0.7 (red zone); emits `st.info` when the band contains any γ² in 0.70–0.85 (yellow/caution zone). Silent when Page 3 data is absent.
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button — computes FRFs, sweeps orders 2..N_max, and stores results in session state.
@@ -168,6 +169,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - Stored as shape `(n_freqs, 2)`: σ₁ = Euclidean norm of H row vector; σ₂ = 0 (single reference — shown greyed out for display consistency with MIMO).
 - Plotted on a log y-axis vs frequency (Hz).
 - Peaks indicate candidate mode locations.
+- **Coherence overlay:** if Page 3 spectral data is available, semi-transparent shaded rectangles mark frequency sub-bands where γ² < 0.85 (yellow) or γ² < 0.7 (red).
 
 #### Stability Diagram
 - Model order swept from 2 to N_max (step 2); each order compared to the previous.
@@ -177,6 +179,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - **x / orange** = freq + damping stable: above + `|Δξ/ξ| < ε_ξ`
   - **star / green** = fully stable: above + MAC ≥ ε_MAC
 - Normalised CMIF σ₁ curve shown in background for reference (scaled to fit model-order axis).
+- **Coherence overlay:** same yellow/red shaded rectangles as the CMIF tab. A "⚠ Low coherence (γ²<0.7)" annotation appears in the top-left corner when any red zone is present.
 
 #### Mode Shapes
 - Summary table: Mode #, fn (Hz), ξ (%), |φ| and ∠φ (°) per output channel.
@@ -337,6 +340,7 @@ Multiple coherence for output channel _k_:
 - **Welch controls** (if selected): Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar).
 - **FRF estimator** radio: H1 / H2 / Hv (applied independently to each run before stacking).
 - **Frequency range** slider.
+- **Coherence quality gate** (inline, same logic as Page 4): reads `spectral_results` from Page 3; emits `st.warning` / `st.info` based on γ² thresholds 0.7 / 0.85. Silent when Page 3 data is absent.
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button.
@@ -355,11 +359,13 @@ Multiple coherence for output channel _k_:
 - Both singular value curves (σ₁ ≥ σ₂) plotted on log y-axis vs frequency.
   - σ₁: all modes visible; σ₂: resolves repeated / closely-spaced modes.
 - Peaks from σ₁ used for initial mode frequency estimates.
+- **Coherence overlay:** same yellow/red shaded rectangles as Page 4 (requires Page 3 `spectral_results`).
 
 #### Stability Diagram
 - Same four-class pole classification as Page 4 (new / freq-stable / freq+damp-stable / fully-stable).
 - MIMO FRF matrix reshaped to (n_freqs, n_out × 2) before sweep; reuses `build_stability_table`.
 - SVD-CMIF σ₁ curve shown in background for reference.
+- **Coherence overlay:** yellow/red vrect zones + "⚠ Low coherence" annotation when γ² < 0.7 (requires Page 3 data).
 
 #### Mode Shapes
 - Summary table: Mode #, fn (Hz), ξ (%), type (S/A), |φ| and ∠φ (°) per output per reference (columns labelled `A·<ch>` and `B·<ch>`).
@@ -422,7 +428,60 @@ Multiple coherence for output channel _k_:
 
 ---
 
-## Page 6 — Modal Assurance Criteria (stub)
+## Page 6 — OMA (Operational Modal Analysis)
+
+Frequency Domain Decomposition (FDD) from output-only response data. No input/force channel is required — the excitation is assumed broadband and stationary.
+
+### Controls
+
+**Step 1 — Build Power CMIF**
+- **Segments**, **Overlap %**, **Window** — Welch parameters for the output CPSD matrix.
+- **Frequency range** slider (analysis band).
+- **Coherence quality gate** (output-output, inline after the frequency slider): computed from `oma_Syy` (the output spectral matrix) after the CMIF has been built. Uses ordinary coherence between the first two output channels as a proxy for correlated structural response. Emits `st.warning` when ≥ 10 % of the band has γ² < 0.7; `st.info` when caution zone (0.70–0.85) is present. Note: output-output coherence in OMA indicates channel correlation, not signal-to-noise ratio as in SIMO/MIMO.
+- **Build Power CMIF** button — computes `Syy` (output CPSD matrix) then runs FDD SVD; results stored in `oma_freqs`, `oma_sv`, `oma_svecs`, `oma_Syy`.
+
+**Step 2 — Mode Specification**
+- **Number of modes** input (auto-populated from σ₁ peak count).
+- **Mode initial estimates** editable table — fn (Hz), ξ (%) (estimated from half-power bandwidth via `fdd_damping`), source (read-only).
+- **Extract Mode Shapes** button.
+
+### Three tabs
+
+#### Power CMIF
+- Singular value curves (σ₁…σₙ) plotted in dB vs frequency.
+- Identified mode frequencies overlaid as red dashed vertical lines with annotations.
+- **Coherence overlay:** yellow/red vrect zones from output-output coherence (requires CMIF built first). Annotation added when red zones are present.
+
+#### Mode Shapes
+- Summary table: Mode #, fn (Hz), ξ (%), f_a/f_b (Hz), |φ| and ∠φ (°) per output channel.
+- Mode shape magnitude bar charts (one column per mode).
+
+#### Export
+- Downloadable CSV: `<analysis_name>_oma_results.csv`.
+
+### Algorithm — FDD
+1. Assemble output CPSD matrix `Syy` (n_freqs × n_out × n_out) via Welch-averaged cross-spectral densities.
+2. SVD at each frequency line: `Syy[k] = U[k] · diag(sv[k]) · U[k]ᴴ`.
+3. σ₁[k] = largest singular value; peaks in σ₁ correspond to natural frequencies.
+4. Mode shape at peak frequency = first left singular vector `U[peak_idx, :, 0]`.
+5. Damping ratio estimated from σ₁ half-power bandwidth around each peak (`fdd_damping` in `core/sysid.py`).
+
+### Session state
+| Key | Set by | Consumed by |
+|-----|--------|-------------|
+| `oma_df` | `6_OMA.py` (load) | `6_OMA.py` (Build) |
+| `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` (Build) |
+| `oma_freqs` | `6_OMA.py` (Build) | `6_OMA.py` (charts, coherence gate) |
+| `oma_sv` | `6_OMA.py` (Build) | `6_OMA.py` (CMIF tab, Extract) |
+| `oma_svecs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) |
+| `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` (coherence gate) |
+| `oma_sel_outputs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract, Export) |
+| `oma_peak_estimates` | `6_OMA.py` (Build) | `6_OMA.py` (Step 2 table seed) |
+| `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
+
+---
+
+## Page 7 — Modal Assurance Criteria (stub)
 
 MAC plot — not yet implemented.
 
