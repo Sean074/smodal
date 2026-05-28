@@ -151,6 +151,25 @@ Shared EMA mode-extraction pipeline. Both SIMO (page 4) and MIMO (page 5) call t
 - `nmse_quality_label(nmse_db: float) → str` — returns `"Excellent"` / `"Good"` / `"Acceptable"` / `"Poor"` for thresholds `< -30` / `< -20` / `< -10` / `>= -10` dB. Used in the fit-quality expander on both pages 4 and 5.
 - `prepare_band_arrays(H, freqs, f_min, f_max) → (H_band, freqs_band)` — slices `H` and `freqs` to `[f_min, f_max]` Hz using a single boolean mask. Raises `ValueError` if the band is empty.
 
+### `core/ema_charts.py`
+Shared chart-rendering helpers called by `core/simo_page.py` and `core/mimo_page.py`. Extracted to eliminate duplicated plotting code between the two EMA pages.
+
+- `coherence_gate_warnings(spec_chs, spec_freqs, frf_method_used, f_min, f_max)` — computes minimum γ² across channels, calls `band_coherence_stats` at 0.70 and 0.85 thresholds, renders `st.warning` / `st.info` as appropriate, returns `(red_bands, yellow_bands)` — lists of `(f_lo, f_hi)` tuples for vrect shading.
+- `stability_diagram_figure(stab_results, cmif_vals, freqs, f_min, f_max, max_order, coh_red, coh_yellow, eps, title)` — builds and returns a Plotly figure: CMIF background trace, stability scatter coloured by class (`new` / `stable_f` / `stable_fd` / `stable_all`), coherence vrects, low-coherence annotation.
+- `stability_diagram_guide()` — renders the stability legend expander (glyph → class → criterion → guidance table).
+- `spectral_tab_content(spec_chs, spec_freqs, frf_method_used, f_min, f_max, eps, frf_key, coh_caption, input_label)` — renders three nested sub-tabs (FRF, Coherence, Auto-PSD) inside an active parent tab; `frf_key` is the widget key for the FRF estimator radio, `coh_caption` is optional text below the coherence plot, `input_label` sets the Gxx subplot title.
+- `mode_estimates_init_df(deduped, cmif_cache, freqs_cache, n_modes)` — pure function; builds the `pd.DataFrame` for the Step 2 data editor from pre-deduplicated stable poles, CMIF-derived peaks, and manual fallback rows.
+
+### `core/simo_page.py`
+Page-level logic for page 4 (SIMO EMA). The `pages/4_SIMO.py` driver is an 11-line entry point; all rendering lives here.
+
+- `render()` — full SIMO page: file upload, channel assignment, preprocessing expander, FFT/FRF preview expanders, stability diagram controls (Step 1), mode-estimates editor (Step 2), build-stability and extract-modes action handlers, and a five-tab chart panel (CMIF, Stability Diagram, Mode Shapes, Spectral, Export). Calls shared helpers from `core/ema_charts.py` for stability figure, spectral sub-tabs, and coherence gate.
+
+### `core/mimo_page.py`
+Page-level logic for page 5 (MIMO EMA). The `pages/5_MIMO.py` driver is an 11-line entry point; all rendering lives here.
+
+- `render()` — full MIMO page: dual-file upload (Run A / Run B), channel assignment, preprocessing expander, FFT/FRF preview expanders, stability diagram controls (Step 1), mode-estimates editor (Step 2), build-stability and extract-modes action handlers (MIMO-specific residue reshape and mode-type classification), and a five-tab chart panel (SVD-CMIF, Stability Diagram, Mode Shapes, Spectral, Export). Calls shared helpers from `core/ema_charts.py` for stability figure, spectral sub-tabs, and coherence gate.
+
 ### `core/mimo.py`
 - `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
 - `compute_mimo_frfs(run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs, frf_method, frf_est, n_seg, ovlp_pct, welch_win)` — assembles the stacked MIMO FRF matrix from two processed runs; returns `(H_stacked, freqs_full)` where `H_stacked` is `(n_freqs, n_out * 2)`. Raises `ValueError` if `sel_outputs` is empty.
