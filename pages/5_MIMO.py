@@ -11,14 +11,11 @@ from core.mimo import compute_mimo_cmif, compute_mimo_frfs
 from core.spectral import band_coherence_stats, compute_fft, compute_spectral_quantities, compute_welch_quantities
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
+from core.ema_pipeline import extract_modes, nmse_quality_label
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
     deduplicate_stable_poles,
-    extract_residues,
-    modal_fit_nmse,
-    poles_from_estimates,
-    synthesize_frf,
 )
 
 st.set_page_config(page_title="smodal · MIMO", layout="wide")
@@ -605,7 +602,15 @@ if extract_btn:
         st.error("No valid mode estimates. Enter fn > 0 and ξ > 0.")
         st.stop()
 
-    poles = poles_from_estimates(fn_arr, xi_arr)
+    with st.spinner("Extracting residues…"):
+        result = extract_modes(H_mat_band, freqs_ext, freqs_full, fn_arr, xi_arr)
+
+    poles    = result["poles"]
+    fn_fit   = result["fn_hz"]
+    xi_fit   = result["xi"]
+    residues = result["residues"]       # (n_out*2, n_modes)
+    H_syn    = result["H_synthesis_full"]
+    nmse     = result["nmse"]
 
     if len(freqs_ext) < 2 * len(poles):
         st.warning(
@@ -613,28 +618,15 @@ if extract_btn:
             f"for {len(poles)} modes — residue fit may be ill-conditioned."
         )
 
-    with st.spinner("Extracting residues…"):
-        residues = extract_residues(H_mat_band, freqs_ext, poles)  # (n_out*2, n_modes)
-
-        # Reshape: first n_out_ext rows = Run A, next n_out_ext rows = Run B
-        res_A = residues[:n_out_ext, :]  # (n_out, n_modes)
-        res_B = residues[n_out_ext:, :]  # (n_out, n_modes)
-        r3d = np.stack([res_A, res_B], axis=1)  # (n_out, 2, n_modes)
-
-        # Symmetric (S) if Run A norm dominates, Antisymmetric (A) otherwise
-        n_modes_fit = residues.shape[1]
-        mode_types = []
-        for m in range(n_modes_fit):
-            norm_A = np.linalg.norm(r3d[:, 0, m])
-            norm_B = np.linalg.norm(r3d[:, 1, m])
-            mode_types.append("S" if norm_A >= norm_B else "A")
-
-        H_syn_band = synthesize_frf(freqs_ext, poles, residues)  # (n_band, n_out*2) for NMSE
-        H_syn = synthesize_frf(freqs_full, poles, residues)  # (n_freqs, n_out*2) for plotting
-        nmse = modal_fit_nmse(H_mat_band, H_syn_band)  # (n_out*2,)
-
-    fn_fit = np.abs(poles.imag) / (2.0 * np.pi)
-    xi_fit = -poles.real / (np.abs(poles) + 1e-30)
+    # MIMO-specific: reshape residues into (n_out, 2, n_modes) and classify mode types
+    res_A = residues[:n_out_ext, :]  # (n_out, n_modes)
+    res_B = residues[n_out_ext:, :]  # (n_out, n_modes)
+    r3d = np.stack([res_A, res_B], axis=1)  # (n_out, 2, n_modes)
+    n_modes_fit = residues.shape[1]
+    mode_types = [
+        "S" if np.linalg.norm(r3d[:, 0, m]) >= np.linalg.norm(r3d[:, 1, m]) else "A"
+        for m in range(n_modes_fit)
+    ]
 
     st.session_state["mimo_modal_results"] = {
         "fn": fn_fit,
@@ -945,15 +937,6 @@ with chart_col:
                 )
                 st.plotly_chart(fig, use_container_width=True)
 
-            def _nmse_quality(db: float) -> str:
-                if db < -30:
-                    return "Excellent"
-                if db < -20:
-                    return "Good"
-                if db < -10:
-                    return "Acceptable"
-                return "Poor"
-
             with st.expander("Fit quality (NMSE per channel)"):
                 st.caption(
                     "NMSE = 10 log₁₀(error energy / signal energy). Lower (more negative) is better. "
@@ -967,7 +950,7 @@ with chart_col:
                             "Channel": ch,
                             "Run": "A",
                             "NMSE (dB)": round(float(nmse[o]), 2),
-                            "Quality": _nmse_quality(float(nmse[o])),
+                            "Quality": nmse_quality_label(float(nmse[o])),
                         }
                     )
                     nmse_rows.append(
@@ -975,7 +958,7 @@ with chart_col:
                             "Channel": ch,
                             "Run": "B",
                             "NMSE (dB)": round(float(nmse[n_out_fit + o]), 2),
-                            "Quality": _nmse_quality(float(nmse[n_out_fit + o])),
+                            "Quality": nmse_quality_label(float(nmse[n_out_fit + o])),
                         }
                     )
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)

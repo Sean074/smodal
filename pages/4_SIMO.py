@@ -10,14 +10,11 @@ from core.data_loader import compute_sample_rate, load_csv
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
 from core.spectral import band_coherence_stats, compute_fft, compute_spectral_quantities, compute_welch_quantities
+from core.ema_pipeline import extract_modes, nmse_quality_label
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
     deduplicate_stable_poles,
-    extract_residues,
-    modal_fit_nmse,
-    poles_from_estimates,
-    synthesize_frf,
 )
 
 st.set_page_config(page_title="smodal · SIMO", layout="wide")
@@ -483,23 +480,23 @@ if extract_btn:
         st.error("No valid mode estimates. Enter fn > 0 and ξ > 0.")
         st.stop()
 
-    poles = poles_from_estimates(fn_arr, xi_arr)
     sel_out = st.session_state.get("si_sel_outputs", sel_outputs)
+
+    with st.spinner("Extracting residues…"):
+        result = extract_modes(H_mat_band, freqs_band, freqs, fn_arr, xi_arr)
+
+    poles    = result["poles"]
+    fn_fit   = result["fn_hz"]
+    xi_fit   = result["xi"]
+    residues = result["residues"]
+    H_syn    = result["H_synthesis_full"]
+    nmse     = result["nmse"]
 
     if len(freqs_band) < 2 * len(poles):
         st.warning(
             f"Frequency band has {len(freqs_band)} lines but {2 * len(poles)} are needed "
             f"for {len(poles)} modes — residue fit may be ill-conditioned."
         )
-
-    with st.spinner("Extracting residues…"):
-        residues = extract_residues(H_mat_band, freqs_band, poles)
-        H_syn = synthesize_frf(freqs, poles, residues)
-        H_syn_band = synthesize_frf(freqs_band, poles, residues)
-        nmse = modal_fit_nmse(H_mat_band, H_syn_band)
-
-    fn_fit = np.abs(poles.imag) / (2.0 * np.pi)
-    xi_fit = -poles.real / (np.abs(poles) + 1e-30)
 
     st.session_state["modal_results"] = {
         "fn": fn_fit,
@@ -772,15 +769,6 @@ with chart_col:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            def _nmse_quality(db: float) -> str:
-                if db < -30:
-                    return "Excellent"
-                if db < -20:
-                    return "Good"
-                if db < -10:
-                    return "Acceptable"
-                return "Poor"
-
             with st.expander("Fit quality (NMSE per channel)"):
                 st.caption(
                     "NMSE = 10 log₁₀(error energy / signal energy). Lower (more negative) is better. "
@@ -788,7 +776,7 @@ with chart_col:
                     "Scale: Excellent < −30 dB · Good −30 to −20 dB · Acceptable −20 to −10 dB · Poor > −10 dB"
                 )
                 nmse_rows = [
-                    {"Channel": ch, "NMSE (dB)": round(float(nmse[o]), 2), "Quality": _nmse_quality(float(nmse[o]))}
+                    {"Channel": ch, "NMSE (dB)": round(float(nmse[o]), 2), "Quality": nmse_quality_label(float(nmse[o]))}
                     for o, ch in enumerate(out_chs)
                 ]
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)

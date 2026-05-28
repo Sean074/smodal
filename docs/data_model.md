@@ -119,6 +119,13 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 - `fdd_damping(sv1, freqs, peak_idx)` — half-power bandwidth damping estimate; returns `(xi_pct, f_a, f_b)`. Returns `(0.0, freqs[0], freqs[-1])` sentinel when no upper half-power crossing is found (peak at or near last frequency index); callers should clamp 0.0 to a minimum damping value.
 - `compute_mac(phi_ref, phi_comp)` — MAC matrix `(n_ref, n_comp)` between two sets of mode shapes.
 
+### `core/ema_pipeline.py`
+Shared EMA mode-extraction pipeline. Both SIMO (page 4) and MIMO (page 5) call these functions so that fixes to the residue/synthesis/NMSE chain propagate to both pages automatically.
+
+- `extract_modes(H_band, freqs_band, freqs_full, fn_estimates, xi_estimates) → dict` — runs `poles_from_estimates → extract_residues → synthesize_frf (band + full) → modal_fit_nmse` in one call. `H_band` and synthesis arrays share the same `n_outputs` dimension: `(n_out,)` for SIMO, `(n_out*2,)` for MIMO stacked runs. MIMO-specific residue reshape stays in the page. Returns dict with keys: `poles`, `fn_hz`, `xi`, `residues` `(n_outputs, n_modes)`, `H_synthesis_band`, `H_synthesis_full`, `nmse`.
+- `nmse_quality_label(nmse_db: float) → str` — returns `"Excellent"` / `"Good"` / `"Acceptable"` / `"Poor"` for thresholds `< -30` / `< -20` / `< -10` / `>= -10` dB. Used in the fit-quality expander on both pages 4 and 5.
+- `prepare_band_arrays(H, freqs, f_min, f_max) → (H_band, freqs_band)` — slices `H` and `freqs` to `[f_min, f_max]` Hz using a single boolean mask. Raises `ValueError` if the band is empty.
+
 ### `core/mimo.py`
 - `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
 - `compute_mimo_frfs(run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs, frf_method, frf_est, n_seg, ovlp_pct, welch_win)` — assembles the stacked MIMO FRF matrix from two processed runs; returns `(H_stacked, freqs_full)` where `H_stacked` is `(n_freqs, n_out * 2)`. Raises `ValueError` if `sel_outputs` is empty.
