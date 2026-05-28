@@ -38,7 +38,12 @@ Test suite at close of Pass 5: **103 passed, 0 failed**.
 | P4-N1 | MINOR | `core/mimo.py:43` | Latent `NameError` when `sel_outputs=[]` in Welch branch | CLOSED (pre-existing fix) |
 | P4-N2 | NIT | `docs/data_model.md` | `mimo_frf_est_used` session key missing from table | FIXED |
 | P5-N1 | MINOR | `core/geometry.py:276` | `_RE_FLOAT` regex drops F06 floats with unsigned exponent (e.g., `1.234E3`) | FIXED (Pass 6 as P6-M2) |
-| P5-N2 | NIT | `pyproject.toml:56` | `E402` ruff ignore project-wide instead of scoped to `pages/` | **OPEN → carried to Pass 6** |
+| P5-N2 | NIT | `pyproject.toml:56` | `E402` ruff ignore project-wide instead of scoped to `pages/` | FIXED (Pass 6 as P6-T1) |
+| P6-C1 | CRITICAL | `core/sysid.py:246` | `except Exception` silently substitutes unit-vector mode shapes on residue-extraction failure | FIXED (`e408d01`) |
+| P6-M1 | MINOR | `core/data_loader.py:54` | `compute_sample_rate` comment says "warn" on >1% jitter but body was `pass` | FIXED |
+| P6-M2 | MINOR | `core/geometry.py:276` | `_RE_FLOAT` regex requires explicit exponent sign (carried from P5-N1) | FIXED |
+| P6-T1 | NIT | `pyproject.toml:56` | `E402` ruff ignore project-wide (carried from P5-N2) | FIXED |
+| P6-T2 | NIT | `pyproject.toml` | `Development Status :: 3 - Alpha` conflicts with v1.0.0 | FIXED (→ `4 - Beta`) |
 
 ---
 
@@ -66,40 +71,11 @@ Test suite at close of Pass 5: **103 passed, 0 failed**.
 
 ---
 
-**[P6-C1] `core/sysid.py:246` — `except Exception` silently substitutes unit-vector mode shapes on residue-extraction failure**
+~~**[P6-C1] `core/sysid.py:246` — `except Exception` silently substitutes unit-vector mode shapes on residue-extraction failure**~~
 
-WHY: When `extract_residues` raises inside `build_stability_table`, the `except Exception` at line 246
-returns `np.ones((len(poles), H.shape[1]), dtype=complex)` — unit vectors — as mode shapes. The outer
-`except Exception` at line 250 additionally swallows whole-order pole-finding failures with no warning.
-Both are broad catches; neither logs, warns, or marks affected poles as unreliable.
-
-Consequence: MAC-based stability classification (`stable_all` vs `stable_fd`) runs against fabricated
-unit shapes. Poles that should be classified `new` or `stable_fd` may be promoted to `stable_all`
-silently. The user sees a stability diagram they cannot trust, with no indication anything went wrong.
-
-FIX (line 246 inner catch):
-```python
-except Exception as exc:
-    warnings.warn(
-        f"Residue extraction failed for order {n}: {exc} — poles marked unreliable",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-    mshapes = None  # Signal downstream classifier to mark these poles as 'new'
-```
-Then update the stability classifier to treat `mshapes is None` as `stability = "new"` for all poles
-at that order.
-
-FIX (line 250 outer catch):
-```python
-except Exception as exc:
-    warnings.warn(
-        f"Pole-finding failed for order {n}: {exc} — order skipped",
-        RuntimeWarning,
-        stacklevel=2,
-    )
-    results.append({"order": n, "poles": np.array([]), ...})
-```
+FIXED (`e408d01`): inner `except Exception` now emits a `RuntimeWarning` and sets `mshapes = None`; the
+stability classifier treats `None` shapes as `"new"` for all poles at that order. Outer catch also
+emits a `RuntimeWarning` and appends an empty-poles entry rather than swallowing the failure silently.
 
 ---
 
@@ -143,10 +119,10 @@ Update to `5 - Production/Stable` when v1.1.0 ships.
 
 | Gate | Status |
 |---|---|
-| All [CRITICAL] resolved | ✗ — P6-C1 open |
+| All [CRITICAL] resolved | ✓ — P6-C1 fixed (`e408d01`) |
 | All [MAJOR] resolved | ✓ |
 | `pytest tests/ -v` passes | ✓ — 146 passed |
 | `docs/data_model.md` up to date | ✓ |
 | No new [CRITICAL] introduced since last review pass | ✓ |
 
-**Pass 6 verdict: BLOCKED — P6-C1 must be fixed before merge.**
+**Pass 6 verdict: APPROVED — all issues resolved. Ready for merge to `main` as v1.1.0.**

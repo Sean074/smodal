@@ -1,30 +1,43 @@
 # Development Roadmap — smodal
 
-## Milestone v1.1.0 — Trustworthy results
+## Milestone v1.1.0 — Trustworthy results ✓ SHIPPED 2026-05-28
 
 **Goal:** The app stops lying to users. Every result the UI surfaces is either correct or accompanied by a visible warning.
 
+| # | Item | Status |
+|---|---|---|
+| 1 | Fix P6-C1: `except Exception` in `build_stability_table` silently substitutes unit-vector mode shapes | ✓ DONE (`e408d01`) |
+| 2 | Coherence quality gate: overlay γ² < 0.7 bands on FRF/SIMO/MIMO/OMA pages | ✓ DONE |
+| 3 | Page-level smoke tests (Streamlit `AppTest`) for all 9 pages | ✓ DONE — 146 tests pass |
+| 4 | Stability diagram: in-app legend / tooltip for glyph symbols | ✓ DONE |
+
+Also completed in this cycle (pulled forward from v1.2.0 and backlog):
+
+| Item | Status |
+|---|---|
+| 2-DOF cantilever tutorial notebook (`docs/tutorial_cantilever.ipynb`) | ✓ DONE |
+| UFF58 / UNV mode-shape export writer | ✓ DONE |
+| Reproducibility metadata in analysis log (file hashes, library versions) | ✓ DONE |
+| Refactor shared SIMO/MIMO logic into `core/ema_charts.py` / `core/simo_page.py` / `core/mimo_page.py` | ✓ DONE |
+| Model order sanity warning (max order > n\_freq\_lines / 4) | ✓ DONE |
+| `pyproject.toml` classifier → `4 - Beta` | ✓ DONE |
+
+---
+
+## Milestone v1.2.0 — Production quality
+
+**Goal:** Harden the app for real engineering workflows: CI regression suite, stricter input validation, and a path toward `5 - Production/Stable`.
+
 | # | Item | Notes |
 |---|---|---|
-| 1 | Fix P6-C1: `except Exception` in `build_stability_table` silently substitutes unit-vector mode shapes | Blocker — see CDR Pass 6 |
-| 2 | Coherence quality gate: overlay γ² < 0.7 bands on FRF/SIMO/MIMO/OMA pages | Biggest predictor of "did I get a real mode"; also the most instructive signal for students |
-| 3 | Page-level smoke tests (Streamlit `AppTest`) for all 9 pages | Target: each page loads, accepts data, writes expected session-state keys — catches ~80% of page-layer regressions |
-| 4 | Stability diagram: in-app legend / tooltip for `stable_all` / `stable_fd` / `stable_f` / `new` glyphs | Without this, students guess; combined with P6-C1, they guess wrong |
-
-## Milestone v1.2.0 — Usable by engineers
-
-**Goal:** Results leave the app. Users can validate their workflow against a known answer and hand results to other tools.
-
-| # | Item | Notes |
-|---|---|---|
-| 5 | 2-DOF analytic reference dataset: known fn, ξ, mode shape documented; tutorial notebook runs end-to-end against it | Doubles as a numerical regression fixture in CI |
-| 6 | Mode export: CSV + UFF/UNV writer | Right now results live only in `st.session_state`; export turns smodal into a step in a workflow |
-| 7 | Reproducibility metadata in analysis log: input file hash, app version, library versions | Engineers using real data need this; students don't, so it's v1.2 not v1.1 |
+| 1 | CI numerical regression against cantilever benchmark | Run the tutorial notebook headlessly in CI; assert fn/ξ within tolerance — catches `core/` regressions that smoke tests miss |
+| 2 | FRF rank-deficiency warning on MIMO page | Warn when the FRF matrix is nearly singular before running pLSCF |
+| 3 | Spurious-pole flag heuristic | Flag poles with damping > 10% or < 0% as likely computational |
+| 4 | Promote PyPI classifier to `5 - Production/Stable` | After CI regression suite is in place |
 
 ## Backlog (no milestone)
 
 | Item | Notes |
 |---|---|
-| Refactor shared SIMO/MIMO logic into `core/ema_pipeline.py` | Eliminates the recurring "fix landed in SIMO but not MIMO" failure mode (see P3-M1, P3-M2) |
-| Sanity bounds: warn when model order > n_freq\_lines / 4 | A 60th-order pLSCF on 30 freq lines is nonsense; the app accepts it silently |
-| Promote PyPI classifier to `5 - Production/Stable` | When v1.1.0 ships — see `pyproject.toml` note in CDR P6-T2 |
+| Multi-run averaging for OMA | Ensemble-average CPSD across repeated ambient runs |
+| Mode shape animation on wireframe page | Animate deformed shape at each extracted frequency |
