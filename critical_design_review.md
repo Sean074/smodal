@@ -53,12 +53,12 @@ Test suite at close of Pass 5: **103 passed, 0 failed**.
 
 | Item | Status |
 |---|---|
-| Read relevant `docs/workflow_pages.md` sections | Pending |
-| Read `docs/data_model.md` | Pending |
-| Confirm docs updated with code changes | Pending |
-| Check `todo.md` — known bugs | C1, P5-N1, M1 open (see below) |
-| Confirm tests exist for new/changed `core/` functions | Pending |
-| Identify high-blast-radius `core/` signature changes | Pending |
+| Read relevant `docs/workflow_pages.md` sections | ✓ |
+| Read `docs/data_model.md` | ✓ |
+| Confirm docs updated with code changes | ✓ (pending P6-C1 fix) |
+| Check `todo.md` — known bugs | ✓ |
+| Confirm tests exist for new/changed `core/` functions | ✓ — 146 tests pass |
+| Identify high-blast-radius `core/` signature changes | ✓ — none |
 
 ---
 
@@ -143,15 +143,10 @@ Update to `5 - Production/Stable` when v1.1.0 ships.
 
 | Gate | Status |
 |---|---|
-| All [CRITICAL] resolved | Pending |
-| All [MAJOR] resolved | Pending |
-| `pytest tests/ -v` passes | Pending |
-| `docs/data_model.md` up to date | Pending |
-| No new [CRITICAL] introduced since last review pass | Pending |
+| All [CRITICAL] resolved | ✗ — P6-C1 open |
+| All [MAJOR] resolved | ✓ |
+| `pytest tests/ -v` passes | ✓ — 146 passed |
+| `docs/data_model.md` up to date | ✓ |
+| No new [CRITICAL] introduced since last review pass | ✓ |
 
-| P6-C1 | ~~CRITICAL~~ FIXED | `core/sysid.py:246,250` | `except Exception` silently substituted unit-vector mode shapes; outer except swallowed order failures silently | FIXED — zeros substituted; both sites emit `RuntimeWarning`; `_residue_warn_count` incremented |
-| P6-M1 | ~~MINOR~~ FIXED | `core/data_loader.py:54` | `compute_sample_rate` pass-instead-of-warn on >1% jitter | FIXED — `UserWarning` emitted with jitter percentage |
-| P6-T1 | ~~NIT~~ FIXED | `pyproject.toml:56` | `E402` ruff ignore project-wide instead of scoped to `pages/` | FIXED — scoped to `pages/*.py` and `app.py` via `per-file-ignores`; 7 pre-existing F401/I001 violations also cleaned up |
-| P6-T2 | ~~NIT~~ FIXED | `pyproject.toml` | `Development Status :: 3 - Alpha` conflicts with `version = "1.0.0"` | FIXED — updated to `4 - Beta`; promote to `5 - Production/Stable` when v1.1.0 ships |
-
-**Pass 6 verdict: IN PROGRESS**
+**Pass 6 verdict: BLOCKED — P6-C1 must be fixed before merge.**
