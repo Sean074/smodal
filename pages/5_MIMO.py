@@ -12,6 +12,7 @@ from core.spectral import band_coherence_stats, compute_fft, compute_spectral_qu
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
 from core.ema_pipeline import extract_modes, nmse_quality_label
+from core.uff_writer import write_uff58_shapes_mimo
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
@@ -1081,4 +1082,11 @@ with chart_col:
                 data=csv_bytes,
                 file_name=f"{analysis_name}_mimo_results.csv",
                 mime="text/csv",
+            )
+            uff_bytes = write_uff58_shapes_mimo(fn_fit, xi_fit, r3d, out_chs, analysis_name)
+            st.download_button(
+                "Download UFF58",
+                data=uff_bytes,
+                file_name=f"{analysis_name}_mimo_results.uff",
+                mime="application/octet-stream",
             )

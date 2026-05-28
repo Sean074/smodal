@@ -134,6 +134,10 @@ Shared EMA mode-extraction pipeline. Both SIMO (page 4) and MIMO (page 5) call t
 - `fft_subplot(df_proc, channels, fs, fmax)` — returns a stacked Plotly figure of magnitude FFT (dB) for each channel.
 - `frf_subplot(df_proc, input_ch, output_chs, fs, fmax)` — returns a stacked magnitude + phase FRF figure (H1 estimator, single FFT) for each output channel.
 
+### `core/uff_writer.py`
+- `write_uff58_shapes(fn_hz, xi, residues, channel_names, analysis_name="") → bytes` — writes identified mode shapes as UFF Dataset 58 (one dataset per channel). `fn_hz`: `(n_modes,)` Hz; `xi`: `(n_modes,)` damping ratios 0–1; `residues`: `(n_channels, n_modes)` complex. Each dataset uses function type 3 (Ordinary Mode Shape), abscissa type 18 (frequency Hz), non-uniform abscissa with data stored as `(fn, real, imag)` triplets in `6E13.5` format. Damping values written to ID line 4.
+- `write_uff58_shapes_mimo(fn_hz, xi, r3d, channel_names, analysis_name="") → bytes` — MIMO variant. `r3d`: `(n_out, 2, n_modes)` complex (run A / run B). Produces `2 × n_out` datasets with channel names prefixed `A_` / `B_`.
+
 ### `core/geometry.py`
 - `parse_wireframe_bdf(file)` — parses a NASTRAN BDF (free-field or 8-char fixed-field) for `GRID` and `PLOTEL` cards; returns a `GeomModel` dataclass with `.grids` and `.plotels` dicts.
 - `parse_f06(file)` — parses a NASTRAN F06 output file for real eigenvalues and eigenvectors; returns `{"frequencies_hz": [...], "mode_shapes": [{gid: [T1,T2,T3]}, ...]}`.
