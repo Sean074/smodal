@@ -420,6 +420,16 @@ with ctrl_col:
 
     max_order = st.slider("Max model order", min_value=4, max_value=100, value=40, step=2, key="mimo_max_order")
 
+    _mimo_freqs_check = st.session_state.get("mimo_freqs")
+    if _mimo_freqs_check is not None:
+        _n_band = int(np.sum((_mimo_freqs_check >= f_min_hz) & (_mimo_freqs_check <= f_max_hz)))
+        if _n_band > 0 and max_order > _n_band // 4:
+            st.warning(
+                f"Max model order ({max_order}) exceeds ¼ of the frequency lines in the "
+                f"analysis band ({_n_band} lines → recommended ≤ {_n_band // 4}). "
+                "Overdetermined models produce spurious computational poles."
+            )
+
     with st.expander("Stability thresholds"):
         df_thr = st.number_input("Δf threshold (%)", value=1.0, step=0.5, min_value=0.1, key="mimo_df_thr") / 100.0
         dd_thr = st.number_input("Δξ threshold (%)", value=5.0, step=1.0, min_value=0.1, key="mimo_dd_thr") / 100.0

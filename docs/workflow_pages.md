@@ -151,7 +151,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - **Output channels** multiselect (defaults to all available output channels).
 - **Frequency range** slider (analysis band, 0 Hz to Nyquist).
 - **Coherence quality gate** (inline, after the frequency slider): reads `si_spectral_channels` / `si_spectral_freqs` (populated by Build). Silent until Build has been run. If `si_frf_method_used == "Single FFT"`, shows `st.caption("Coherence shading suppressed — Single FFT coherence is 1.0 everywhere.")` and leaves shading intervals empty. Otherwise takes element-wise minimum γ² across all output channels; emits `st.warning` when ≥ 10 % of the band has γ² < 0.7 (red zone); emits `st.info` when the band contains any γ² in 0.70–0.85 (yellow/caution zone).
-- **Max model order** slider (4–100, step 2, default 40).
+- **Max model order** slider (4–100, step 2, default 40). Immediately followed by an inline sanity check: if the selected frequency band contains N frequency lines and `max_order > N // 4`, emits `st.warning` noting the overdetermined condition and the recommended ceiling (`≤ N // 4`). Silent when frequency data is not yet available.
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button — computes FRFs, sweeps orders 2..N_max, and stores results in session state.
 
@@ -352,7 +352,7 @@ Multiple coherence for output channel _k_:
 - **FRF estimator** radio: H1 / H2 / Hv (applied independently to each run before stacking).
 - **Frequency range** slider.
 - **Coherence quality gate** (inline, same logic as Page 4): reads `mimo_spectral_channels` / `mimo_spectral_freqs` (populated by Build). Silent until Build has been run. Suppressed with `st.caption` for Single FFT; otherwise emits `st.warning` / `st.info` based on γ² thresholds 0.7 / 0.85.
-- **Max model order** slider (4–100, step 2, default 40).
+- **Max model order** slider (4–100, step 2, default 40). Immediately followed by an inline sanity check: if the selected frequency band contains N frequency lines and `max_order > N // 4`, emits `st.warning` noting the overdetermined condition and the recommended ceiling (`≤ N // 4`). Reads `mimo_freqs` from session state; silent when not yet available.
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button.
 
