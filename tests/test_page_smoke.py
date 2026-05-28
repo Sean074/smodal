@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import pathlib
 
-import pytest
 from streamlit.testing.v1 import AppTest
 
 ROOT = pathlib.Path(__file__).parent.parent

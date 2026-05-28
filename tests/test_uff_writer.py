@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from core.uff_writer import write_uff58_shapes, write_uff58_shapes_mimo
 

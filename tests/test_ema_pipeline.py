@@ -5,7 +5,6 @@ import pytest
 
 from core.ema_pipeline import extract_modes, nmse_quality_label, prepare_band_arrays
 
-
 # ---------------------------------------------------------------------------
 # extract_modes
 # ---------------------------------------------------------------------------

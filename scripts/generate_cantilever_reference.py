@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import math
 import pathlib
-import sys
 
 import numpy as np
 from scipy.integrate import quad

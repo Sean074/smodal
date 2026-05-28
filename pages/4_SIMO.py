@@ -7,16 +7,16 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from core.data_loader import compute_sample_rate, load_csv
+from core.ema_pipeline import extract_modes, nmse_quality_label
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
 from core.spectral import band_coherence_stats, compute_fft, compute_spectral_quantities, compute_welch_quantities
-from core.ema_pipeline import extract_modes, nmse_quality_label
-from core.uff_writer import write_uff58_shapes
 from core.sysid import (
     build_stability_table,
     cmif_peak_estimates,
     deduplicate_stable_poles,
 )
+from core.uff_writer import write_uff58_shapes
 
 st.set_page_config(page_title="smodal · SIMO", layout="wide")
 
