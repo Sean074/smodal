@@ -148,7 +148,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - **FRF estimator** radio: H1 / H2 / Hv (default H1).
 - **Output channels** multiselect (defaults to all available output channels).
 - **Frequency range** slider (analysis band, 0 Hz to Nyquist).
-- **Coherence quality gate** (inline, after the frequency slider): reads `spectral_results` from Page 3 if present; takes element-wise minimum γ² across all output channels within the selected band. Emits `st.warning` when ≥ 10 % of the band has γ² < 0.7 (red zone); emits `st.info` when the band contains any γ² in 0.70–0.85 (yellow/caution zone). Silent when Page 3 data is absent.
+- **Coherence quality gate** (inline, after the frequency slider): reads `si_spectral_channels` / `si_spectral_freqs` (populated by Build). Silent until Build has been run. If `si_frf_method_used == "Single FFT"`, shows `st.caption("Coherence shading suppressed — Single FFT coherence is 1.0 everywhere.")` and leaves shading intervals empty. Otherwise takes element-wise minimum γ² across all output channels; emits `st.warning` when ≥ 10 % of the band has γ² < 0.7 (red zone); emits `st.info` when the band contains any γ² in 0.70–0.85 (yellow/caution zone).
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button — computes FRFs, sweeps orders 2..N_max, and stores results in session state.
@@ -162,7 +162,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - User can override fn and ξ values.
 - **Extract Mode Shapes** button — converts table estimates to complex poles and runs residue extraction.
 
-### Four tabs
+### Five tabs
 
 #### CMIF
 - Complex Mode Indicator Function read from cached `si_cmif` (built when "Build Stability Diagram" is clicked).
@@ -190,6 +190,12 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 - NMSE (dB) per channel appended to the subplot title annotation.
 - **Fit quality (NMSE per channel)** expander below the FRF overlay: table with columns Channel, NMSE (dB), and Quality per output channel. A caption explains the metric: NMSE = 10 log₁₀(error energy / signal energy); lower is better. Quality labels: Excellent (< −30 dB), Good (−30 to −20 dB), Acceptable (−20 to −10 dB), Poor (> −10 dB).
 - **Rank-deficiency warning:** if the frequency band has fewer lines than `2 × n_modes`, an `st.warning` fires before extraction and `extract_residues` emits a `RuntimeWarning` to the server log.
+
+#### Spectral
+Populated when "Build Stability Diagram" is clicked. Three nested sub-tabs:
+- **FRF** — magnitude (dB) + phase (°) per output channel. Radio selector for H1 / H2 / Hv estimator. Data sourced from `si_spectral_channels`.
+- **Coherence** — if `si_frf_method_used == "Single FFT"`: `st.info("Coherence is 1.0 for a single-realization FFT.")`. Otherwise: γ² per channel plotted with 0.85 dashed reference line.
+- **Auto-PSD** — Gxx (input auto-PSD, dB) in the first subplot row, then Gyy (output auto-PSD, dB) per output channel. Shared x-axis. All data sourced from `si_spectral_channels`.
 
 #### Export
 - Table of identified modes (mode #, fn Hz, ξ %, amplitude and phase per channel) shown and available as downloadable CSV named `<analysis_name>_modal_results.csv`.
@@ -230,6 +236,9 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
 | `si_freqs_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Build, band mask) |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `si_spectral_channels` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) — dict: output_ch → `{Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}` |
+| `si_spectral_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) |
+| `si_frf_method_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `modal_results` | `4_SIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
@@ -340,7 +349,7 @@ Multiple coherence for output channel _k_:
 - **Welch controls** (if selected): Segments (4/8/16/32/64), Overlap % (0/25/50/75), Window (hann/flattop/boxcar).
 - **FRF estimator** radio: H1 / H2 / Hv (applied independently to each run before stacking).
 - **Frequency range** slider.
-- **Coherence quality gate** (inline, same logic as Page 4): reads `spectral_results` from Page 3; emits `st.warning` / `st.info` based on γ² thresholds 0.7 / 0.85. Silent when Page 3 data is absent.
+- **Coherence quality gate** (inline, same logic as Page 4): reads `mimo_spectral_channels` / `mimo_spectral_freqs` (populated by Build). Silent until Build has been run. Suppressed with `st.caption` for Single FFT; otherwise emits `st.warning` / `st.info` based on γ² thresholds 0.7 / 0.85.
 - **Max model order** slider (4–100, step 2, default 40).
 - **Stability thresholds** expander: Δf (%), Δξ (%), MAC threshold.
 - **Build Stability Diagram** button.
@@ -352,7 +361,7 @@ Multiple coherence for output channel _k_:
   - Falls back to SVD-CMIF σ₁ peaks if poles are insufficient.
 - **Extract Mode Shapes** button.
 
-### Four tabs
+### Five tabs
 
 #### CMIF
 - SVD-based Complex Mode Indicator Function computed from the stacked MIMO FRF matrix.
@@ -378,6 +387,12 @@ Multiple coherence for output channel _k_:
 - NMSE (dB) annotated on each magnitude subplot title.
 - **Fit quality (NMSE per channel)** expander below the FRF overlay: table with columns Channel, Run (A/B), NMSE (dB), and Quality — two rows per output channel. A caption explains the metric and scale (same as Page 4: Excellent < −30 dB, Good −30 to −20 dB, Acceptable −20 to −10 dB, Poor > −10 dB).
 - **Rank-deficiency warning:** same as Page 4 — `st.warning` fires when `n_freqs < 2 × n_modes`.
+
+#### Spectral
+Populated when "Build Stability Diagram" is clicked. Computed from Run A input channel. Three nested sub-tabs:
+- **FRF** — magnitude (dB) + phase (°) per output channel. Radio selector for H1 / H2 / Hv estimator. Data sourced from `mimo_spectral_channels`. Caption notes Run A input reference.
+- **Coherence** — if `mimo_frf_method_used == "Single FFT"`: `st.info("Coherence is 1.0 for a single-realization FFT.")`. Otherwise: γ² per channel (Run A input vs each output) plotted with 0.85 dashed reference line.
+- **Auto-PSD** — Gxx (Run A input auto-PSD, dB) in the first subplot row, then Gyy (output auto-PSD, dB) per output channel. Shared x-axis.
 
 #### Export
 - Table of identified modes (fn, ξ, type, amplitude and phase per output per reference) downloadable as `<analysis_name>_mimo_results.csv`.
@@ -424,6 +439,9 @@ Multiple coherence for output channel _k_:
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_spectral_channels` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) — dict: output_ch → `{Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}` (Run A input reference) |
+| `mimo_spectral_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) |
+| `mimo_frf_method_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `6_MAC.py`, `7_Wireframe.py` |
 
 ---
@@ -437,7 +455,6 @@ Frequency Domain Decomposition (FDD) from output-only response data. No input/fo
 **Step 1 — Build Power CMIF**
 - **Segments**, **Overlap %**, **Window** — Welch parameters for the output CPSD matrix.
 - **Frequency range** slider (analysis band).
-- **Coherence quality gate** (output-output, inline after the frequency slider): computed from `oma_Syy` (the output spectral matrix) after the CMIF has been built. Uses ordinary coherence between the first two output channels as a proxy for correlated structural response. Emits `st.warning` when ≥ 10 % of the band has γ² < 0.7; `st.info` when caution zone (0.70–0.85) is present. Note: output-output coherence in OMA indicates channel correlation, not signal-to-noise ratio as in SIMO/MIMO.
 - **Build Power CMIF** button — computes `Syy` (output CPSD matrix) then runs FDD SVD; results stored in `oma_freqs`, `oma_sv`, `oma_svecs`, `oma_Syy`.
 
 **Step 2 — Mode Specification**
@@ -450,7 +467,7 @@ Frequency Domain Decomposition (FDD) from output-only response data. No input/fo
 #### Power CMIF
 - Singular value curves (σ₁…σₙ) plotted in dB vs frequency.
 - Identified mode frequencies overlaid as red dashed vertical lines with annotations.
-- **Coherence overlay:** yellow/red vrect zones from output-output coherence (requires CMIF built first). Annotation added when red zones are present.
+- Caption: "OMA is output-only — no input/output coherence is defined. Assess data quality by examining singular value flatness between peaks." (No coherence shading — output-output coherence does not apply in OMA.)
 
 #### Mode Shapes
 - Summary table: Mode #, fn (Hz), ξ (%), f_a/f_b (Hz), |φ| and ∠φ (°) per output channel.
@@ -471,10 +488,10 @@ Frequency Domain Decomposition (FDD) from output-only response data. No input/fo
 |-----|--------|-------------|
 | `oma_df` | `6_OMA.py` (load) | `6_OMA.py` (Build) |
 | `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` (Build) |
-| `oma_freqs` | `6_OMA.py` (Build) | `6_OMA.py` (charts, coherence gate) |
+| `oma_freqs` | `6_OMA.py` (Build) | `6_OMA.py` (charts) |
 | `oma_sv` | `6_OMA.py` (Build) | `6_OMA.py` (CMIF tab, Extract) |
 | `oma_svecs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract) |
-| `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` (coherence gate) |
+| `oma_Syy` | `6_OMA.py` (Build) | `6_OMA.py` (Mode Shapes Auto-PSD) |
 | `oma_sel_outputs` | `6_OMA.py` (Build) | `6_OMA.py` (Extract, Export) |
 | `oma_peak_estimates` | `6_OMA.py` (Build) | `6_OMA.py` (Step 2 table seed) |
 | `oma_modal_results` | `6_OMA.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |

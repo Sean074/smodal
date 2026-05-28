@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 
 from core.data_loader import compute_sample_rate, load_csv
 from core.mimo import compute_mimo_cmif, compute_mimo_frfs
-from core.spectral import band_coherence_stats
+from core.spectral import band_coherence_stats, compute_fft, compute_spectral_quantities, compute_welch_quantities
 from core.plots import fft_subplot, frf_subplot
 from core.preprocess import trim_and_filter
 from core.sysid import (
@@ -58,6 +58,9 @@ if file_a is not None and st.session_state.get("mimo_file_a_name") != file_a.nam
             "mimo_cmif",
             "mimo_stability_table",
             "mimo_modal_results",
+            "mimo_spectral_channels",
+            "mimo_spectral_freqs",
+            "mimo_frf_method_used",
         ]:
             st.session_state.pop(k, None)
 
@@ -76,6 +79,9 @@ if file_b is not None and st.session_state.get("mimo_file_b_name") != file_b.nam
             "mimo_cmif",
             "mimo_stability_table",
             "mimo_modal_results",
+            "mimo_spectral_channels",
+            "mimo_spectral_freqs",
+            "mimo_frf_method_used",
         ]:
             st.session_state.pop(k, None)
         fs_b = float(compute_sample_rate(df_b["time"].values))
@@ -381,20 +387,19 @@ with ctrl_col:
     )
 
     # ── Coherence quality gate ─────────────────────────────────────────────────
-    _spec_res = st.session_state.get("spectral_results")
+    _mimo_spec_chs_gate = st.session_state.get("mimo_spectral_channels")
+    _mimo_spec_freqs_gate = st.session_state.get("mimo_spectral_freqs")
+    _mimo_method_gate = st.session_state.get("mimo_frf_method_used")
     _coh_red_intervals: list = []
     _coh_yellow_intervals: list = []
-    if _spec_res is not None:
-        _freqs_spec = _spec_res.get("freqs")
-        _g2_arrays = [
-            cd["gamma2"]
-            for cd in _spec_res.get("channels", {}).values()
-            if cd.get("gamma2") is not None
-        ]
-        if _g2_arrays and _freqs_spec is not None:
+    if _mimo_spec_chs_gate is not None and _mimo_spec_freqs_gate is not None:
+        if _mimo_method_gate == "Single FFT":
+            st.caption("Coherence shading suppressed — Single FFT coherence is 1.0 everywhere.")
+        else:
+            _g2_arrays = [cd["gamma2"] for cd in _mimo_spec_chs_gate.values()]
             _min_len = min(len(g) for g in _g2_arrays)
             _g2_min = np.min(np.stack([g[:_min_len] for g in _g2_arrays], axis=0), axis=0)
-            _freqs_aligned = _freqs_spec[:_min_len]
+            _freqs_aligned = _mimo_spec_freqs_gate[:_min_len]
             _stats_70 = band_coherence_stats(_g2_min, _freqs_aligned, f_min_hz, f_max_hz, threshold=0.7)
             _stats_85 = band_coherence_stats(_g2_min, _freqs_aligned, f_min_hz, f_max_hz, threshold=0.85)
             _coh_red_intervals = _stats_70["low_bands"]
@@ -504,6 +509,30 @@ if build_btn:
             welch_win,
         )
 
+    _spectral_keys = ("Gxx", "Gyy", "Gxy", "Gyx", "H1", "H2", "Hv", "gamma2")
+    _mimo_all_res: dict = {}
+    if frf_method == "Welch":
+        _n_proc_m = len(run_a_proc)
+        _nperseg_m = max(4, _n_proc_m // n_seg)
+        _noverlap_m = int(_nperseg_m * ovlp_pct / 100)
+        _last_m: dict = {}
+        for ch in sel_outputs:
+            _last_m = compute_welch_quantities(
+                run_a_proc[input_a].values, run_a_proc[ch].values,
+                fs, _nperseg_m, _noverlap_m, welch_win,
+            )
+            _mimo_all_res[ch] = {k: _last_m[k] for k in _spectral_keys}
+        _mimo_spectral_freqs = _last_m["freqs"]
+        _mimo_frf_method_used = "Welch"
+    else:
+        _, _Sx_m = compute_fft(run_a_proc[input_a].values, fs, window="uniform")
+        for ch in sel_outputs:
+            _, _Sy_m = compute_fft(run_a_proc[ch].values, fs, window="uniform")
+            _res_m = compute_spectral_quantities(_Sx_m, _Sy_m)
+            _mimo_all_res[ch] = {k: _res_m[k] for k in _spectral_keys}
+        _mimo_spectral_freqs = freqs_full
+        _mimo_frf_method_used = "Single FFT"
+
     with st.spinner("Building stability diagram…"):
         band_mask = (freqs_full >= f_min_hz) & (freqs_full <= f_max_hz)
         H_band = H_stacked[band_mask]
@@ -543,6 +572,9 @@ if build_btn:
     st.session_state["mimo_sel_outputs"] = sel_outputs
     st.session_state["mimo_n_out"] = n_out
     st.session_state["mimo_frf_est_used"] = frf_est
+    st.session_state["mimo_spectral_channels"] = _mimo_all_res
+    st.session_state["mimo_spectral_freqs"] = _mimo_spectral_freqs
+    st.session_state["mimo_frf_method_used"] = _mimo_frf_method_used
     st.session_state.pop("mimo_modal_results", None)
     st.rerun()
 
@@ -622,7 +654,7 @@ with chart_col:
     stab_results = st.session_state.get("mimo_stability_table")
     modal_res = st.session_state.get("mimo_modal_results")
 
-    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Export"])
+    tab_cmif, tab_stab, tab_shapes, tab_spectral, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Spectral", "Export"])
 
     # ── CMIF ──────────────────────────────────────────────────────────────────
     with tab_cmif:
@@ -943,6 +975,90 @@ with chart_col:
                         }
                     )
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
+
+    # ── Spectral ──────────────────────────────────────────────────────────────
+    with tab_spectral:
+        _mimo_spec_chs = st.session_state.get("mimo_spectral_channels")
+        _mimo_spec_freqs = st.session_state.get("mimo_spectral_freqs")
+        _mimo_method_used = st.session_state.get("mimo_frf_method_used")
+        if _mimo_spec_chs is None or _mimo_spec_freqs is None:
+            st.info("Build the stability diagram to populate spectral data.")
+        else:
+            band_mask_sp = (_mimo_spec_freqs >= f_min_hz) & (_mimo_spec_freqs <= f_max_hz)
+            freqs_sp = _mimo_spec_freqs[band_mask_sp]
+            sub_frf, sub_coh, sub_psd = st.tabs(["FRF", "Coherence", "Auto-PSD"])
+
+            with sub_frf:
+                _frf_sel = st.radio("FRF estimator", ["H1", "H2", "Hv"], horizontal=True, key="mimo_spec_frf_est")
+                n_sp_chs = len(_mimo_spec_chs)
+                fig_frf = make_subplots(
+                    rows=2 * n_sp_chs, cols=1,
+                    shared_xaxes=True, vertical_spacing=0.04,
+                    subplot_titles=[t for ch in _mimo_spec_chs for t in (f"|H| — {ch} (dB)", f"∠H — {ch} (°)")],
+                )
+                for i, (ch, cd) in enumerate(_mimo_spec_chs.items()):
+                    H_sp = cd[_frf_sel][band_mask_sp]
+                    clr = f"hsl({i * 47 % 360},65%,50%)"
+                    fig_frf.add_trace(
+                        go.Scatter(x=freqs_sp, y=20 * np.log10(np.maximum(np.abs(H_sp), eps)),
+                                   mode="lines", name=ch, line=dict(color=clr, width=1.5), showlegend=True),
+                        row=2 * i + 1, col=1,
+                    )
+                    fig_frf.add_trace(
+                        go.Scatter(x=freqs_sp, y=np.degrees(np.angle(H_sp)),
+                                   mode="lines", name=ch, line=dict(color=clr, width=1.5), showlegend=False),
+                        row=2 * i + 2, col=1,
+                    )
+                    fig_frf.update_yaxes(title_text="|H| (dB)", row=2 * i + 1, col=1)
+                    fig_frf.update_yaxes(title_text="Phase (°)", row=2 * i + 2, col=1)
+                fig_frf.update_xaxes(title_text="Frequency (Hz)", row=2 * n_sp_chs, col=1, range=[f_min_hz, f_max_hz])
+                fig_frf.update_layout(height=280 * 2 * n_sp_chs, margin=dict(t=40, b=60, l=70, r=20),
+                                      legend=dict(orientation="h", y=-0.04))
+                st.plotly_chart(fig_frf, use_container_width=True)
+                st.caption("FRF computed from Run A input channel.")
+
+            with sub_coh:
+                if _mimo_method_used == "Single FFT":
+                    st.info("Coherence is 1.0 for a single-realization FFT.")
+                else:
+                    fig_coh = go.Figure()
+                    for i, (ch, cd) in enumerate(_mimo_spec_chs.items()):
+                        fig_coh.add_trace(
+                            go.Scatter(x=freqs_sp, y=cd["gamma2"][band_mask_sp],
+                                       mode="lines", name=ch,
+                                       line=dict(color=f"hsl({i * 47 % 360},65%,50%)", width=1.5))
+                        )
+                    fig_coh.add_hline(y=0.85, line=dict(color="grey", dash="dash", width=1))
+                    fig_coh.update_yaxes(title_text="γ²", range=[0, 1.05])
+                    fig_coh.update_xaxes(title_text="Frequency (Hz)", range=[f_min_hz, f_max_hz])
+                    fig_coh.update_layout(height=350, margin=dict(t=30, b=50, l=60, r=20),
+                                          legend=dict(orientation="h", y=-0.15))
+                    st.plotly_chart(fig_coh, use_container_width=True)
+                    st.caption("Coherence between Run A input and each output channel.")
+
+            with sub_psd:
+                _first_cd = next(iter(_mimo_spec_chs.values()))
+                n_rows_psd = 1 + len(_mimo_spec_chs)
+                titles_psd = ["Gxx — Run A Input"] + [f"Gyy — {ch}" for ch in _mimo_spec_chs]
+                fig_psd = make_subplots(rows=n_rows_psd, cols=1, shared_xaxes=True,
+                                        vertical_spacing=0.04, subplot_titles=titles_psd)
+                fig_psd.add_trace(
+                    go.Scatter(x=freqs_sp, y=10 * np.log10(np.maximum(_first_cd["Gxx"][band_mask_sp], eps)),
+                               mode="lines", name="Gxx", line=dict(color="#1f77b4", width=1.5), showlegend=False),
+                    row=1, col=1,
+                )
+                fig_psd.update_yaxes(title_text="PSD (dB)", row=1, col=1)
+                for i, (ch, cd) in enumerate(_mimo_spec_chs.items()):
+                    fig_psd.add_trace(
+                        go.Scatter(x=freqs_sp, y=10 * np.log10(np.maximum(cd["Gyy"][band_mask_sp], eps)),
+                                   mode="lines", name=ch,
+                                   line=dict(color=f"hsl({i * 47 % 360},65%,50%)", width=1.5), showlegend=False),
+                        row=i + 2, col=1,
+                    )
+                    fig_psd.update_yaxes(title_text="PSD (dB)", row=i + 2, col=1)
+                fig_psd.update_xaxes(title_text="Frequency (Hz)", row=n_rows_psd, col=1, range=[f_min_hz, f_max_hz])
+                fig_psd.update_layout(height=max(300, 200 * n_rows_psd), margin=dict(t=40, b=60, l=70, r=20))
+                st.plotly_chart(fig_psd, use_container_width=True)
 
     # ── Export ────────────────────────────────────────────────────────────────
     with tab_export:

@@ -33,6 +33,9 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_H_mat_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) — band-limited FRF matrix `(n_band, n_outputs)` matching `si_freqs_band` |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `si_spectral_channels` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) — `dict[ch → {Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}]` |
+| `si_spectral_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) — frequency axis matching spectral channel arrays |
+| `si_frf_method_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `modal_results` | `4_SIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
@@ -48,6 +51,9 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_spectral_channels` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) — `dict[ch → {Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}]` (Run A input reference) |
+| `mimo_spectral_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) — frequency axis matching spectral channel arrays |
+| `mimo_frf_method_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `oma_df` | `6_OMA.py` (load) | `6_OMA.py` |
 | `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` |

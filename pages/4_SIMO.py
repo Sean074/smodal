@@ -41,7 +41,8 @@ if uploaded_file is not None and st.session_state.get("simo_file_name") != uploa
         st.session_state["simo_df"] = df_raw
         st.session_state["simo_sample_rate"] = float(compute_sample_rate(df_raw["time"].values))
         st.session_state["simo_file_name"] = uploaded_file.name
-        for k in ["si_H_mat", "si_freqs", "si_cmif", "si_stability_table", "modal_results"]:
+        for k in ["si_H_mat", "si_freqs", "si_cmif", "si_stability_table", "modal_results",
+                  "si_spectral_channels", "si_spectral_freqs", "si_frf_method_used"]:
             st.session_state.pop(k, None)
 
 simo_df = st.session_state.get("simo_df")
@@ -274,20 +275,19 @@ with ctrl_col:
     )
 
     # ── Coherence quality gate ─────────────────────────────────────────────────
-    _spec_res = st.session_state.get("spectral_results")
+    _si_spec_chs_gate = st.session_state.get("si_spectral_channels")
+    _si_spec_freqs_gate = st.session_state.get("si_spectral_freqs")
+    _si_method_gate = st.session_state.get("si_frf_method_used")
     _coh_red_intervals: list = []
     _coh_yellow_intervals: list = []
-    if _spec_res is not None:
-        _freqs_spec = _spec_res.get("freqs")
-        _g2_arrays = [
-            cd["gamma2"]
-            for cd in _spec_res.get("channels", {}).values()
-            if cd.get("gamma2") is not None
-        ]
-        if _g2_arrays and _freqs_spec is not None:
+    if _si_spec_chs_gate is not None and _si_spec_freqs_gate is not None:
+        if _si_method_gate == "Single FFT":
+            st.caption("Coherence shading suppressed — Single FFT coherence is 1.0 everywhere.")
+        else:
+            _g2_arrays = [cd["gamma2"] for cd in _si_spec_chs_gate.values()]
             _min_len = min(len(g) for g in _g2_arrays)
             _g2_min = np.min(np.stack([g[:_min_len] for g in _g2_arrays], axis=0), axis=0)
-            _freqs_aligned = _freqs_spec[:_min_len]
+            _freqs_aligned = _si_spec_freqs_gate[:_min_len]
             _stats_70 = band_coherence_stats(_g2_min, _freqs_aligned, f_min, f_max, threshold=0.7)
             _stats_85 = band_coherence_stats(_g2_min, _freqs_aligned, f_min, f_max, threshold=0.85)
             _coh_red_intervals = _stats_70["low_bands"]
@@ -388,6 +388,8 @@ if build_btn:
             fs,
         )
 
+    _spectral_keys = ("Gxx", "Gyy", "Gxy", "Gyx", "H1", "H2", "Hv", "gamma2")
+    all_res: dict = {}
     if frf_method == "Welch":
         n_proc = len(proc_df)
         nperseg = max(4, n_proc // n_seg)
@@ -404,13 +406,20 @@ if build_btn:
                 welch_win,
             )
             H_cols.append(last_res[frf_est])
+            all_res[ch] = {k: last_res[k] for k in _spectral_keys}
         freqs = last_res["freqs"]
+        _si_spectral_freqs = freqs
+        _si_frf_method_used = "Welch"
     else:  # Single FFT
         freqs, Sx = compute_fft(proc_df[input_channel].values, fs, window="uniform")
         H_cols = []
         for ch in sel_outputs:
             _, Sy = compute_fft(proc_df[ch].values, fs, window="uniform")
-            H_cols.append(compute_spectral_quantities(Sx, Sy)[frf_est])
+            ch_res = compute_spectral_quantities(Sx, Sy)
+            H_cols.append(ch_res[frf_est])
+            all_res[ch] = {k: ch_res[k] for k in _spectral_keys}
+        _si_spectral_freqs = freqs
+        _si_frf_method_used = "Single FFT"
 
     H_mat = np.column_stack(H_cols)
     mask = (freqs >= f_min) & (freqs <= f_max)
@@ -447,6 +456,9 @@ if build_btn:
     st.session_state["si_H_mat_band"] = H_band
     st.session_state["si_sel_outputs"] = sel_outputs
     st.session_state["si_frf_est_used"] = frf_est
+    st.session_state["si_spectral_channels"] = all_res
+    st.session_state["si_spectral_freqs"] = _si_spectral_freqs
+    st.session_state["si_frf_method_used"] = _si_frf_method_used
     st.session_state.pop("modal_results", None)
     st.rerun()
 
@@ -509,7 +521,7 @@ with chart_col:
     modal_res = st.session_state.get("modal_results")
     freqs_chart = st.session_state.get("si_freqs")
 
-    tab_cmif, tab_stab, tab_shapes, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Export"])
+    tab_cmif, tab_stab, tab_shapes, tab_spectral, tab_export = st.tabs(["CMIF", "Stability Diagram", "Mode Shapes", "Spectral", "Export"])
 
     # ── CMIF ──────────────────────────────────────────────────────────────────
     with tab_cmif:
@@ -780,6 +792,88 @@ with chart_col:
                     for o, ch in enumerate(out_chs)
                 ]
                 st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
+
+    # ── Spectral ──────────────────────────────────────────────────────────────
+    with tab_spectral:
+        _si_spec_chs = st.session_state.get("si_spectral_channels")
+        _si_spec_freqs = st.session_state.get("si_spectral_freqs")
+        _si_method_used = st.session_state.get("si_frf_method_used")
+        if _si_spec_chs is None or _si_spec_freqs is None:
+            st.info("Build the stability diagram to populate spectral data.")
+        else:
+            band_mask_sp = (_si_spec_freqs >= f_min) & (_si_spec_freqs <= f_max)
+            freqs_sp = _si_spec_freqs[band_mask_sp]
+            sub_frf, sub_coh, sub_psd = st.tabs(["FRF", "Coherence", "Auto-PSD"])
+
+            with sub_frf:
+                _frf_sel = st.radio("FRF estimator", ["H1", "H2", "Hv"], horizontal=True, key="si_spec_frf_est")
+                n_sp_chs = len(_si_spec_chs)
+                fig_frf = make_subplots(
+                    rows=2 * n_sp_chs, cols=1,
+                    shared_xaxes=True, vertical_spacing=0.04,
+                    subplot_titles=[t for ch in _si_spec_chs for t in (f"|H| — {ch} (dB)", f"∠H — {ch} (°)")],
+                )
+                for i, (ch, cd) in enumerate(_si_spec_chs.items()):
+                    H_sp = cd[_frf_sel][band_mask_sp]
+                    clr = f"hsl({i * 47 % 360},65%,50%)"
+                    fig_frf.add_trace(
+                        go.Scatter(x=freqs_sp, y=20 * np.log10(np.maximum(np.abs(H_sp), eps)),
+                                   mode="lines", name=ch, line=dict(color=clr, width=1.5), showlegend=True),
+                        row=2 * i + 1, col=1,
+                    )
+                    fig_frf.add_trace(
+                        go.Scatter(x=freqs_sp, y=np.degrees(np.angle(H_sp)),
+                                   mode="lines", name=ch, line=dict(color=clr, width=1.5), showlegend=False),
+                        row=2 * i + 2, col=1,
+                    )
+                    fig_frf.update_yaxes(title_text="|H| (dB)", row=2 * i + 1, col=1)
+                    fig_frf.update_yaxes(title_text="Phase (°)", row=2 * i + 2, col=1)
+                fig_frf.update_xaxes(title_text="Frequency (Hz)", row=2 * n_sp_chs, col=1, range=[f_min, f_max])
+                fig_frf.update_layout(height=280 * 2 * n_sp_chs, margin=dict(t=40, b=60, l=70, r=20),
+                                      legend=dict(orientation="h", y=-0.04))
+                st.plotly_chart(fig_frf, use_container_width=True)
+
+            with sub_coh:
+                if _si_method_used == "Single FFT":
+                    st.info("Coherence is 1.0 for a single-realization FFT.")
+                else:
+                    fig_coh = go.Figure()
+                    for i, (ch, cd) in enumerate(_si_spec_chs.items()):
+                        fig_coh.add_trace(
+                            go.Scatter(x=freqs_sp, y=cd["gamma2"][band_mask_sp],
+                                       mode="lines", name=ch,
+                                       line=dict(color=f"hsl({i * 47 % 360},65%,50%)", width=1.5))
+                        )
+                    fig_coh.add_hline(y=0.85, line=dict(color="grey", dash="dash", width=1))
+                    fig_coh.update_yaxes(title_text="γ²", range=[0, 1.05])
+                    fig_coh.update_xaxes(title_text="Frequency (Hz)", range=[f_min, f_max])
+                    fig_coh.update_layout(height=350, margin=dict(t=30, b=50, l=60, r=20),
+                                          legend=dict(orientation="h", y=-0.15))
+                    st.plotly_chart(fig_coh, use_container_width=True)
+
+            with sub_psd:
+                _first_cd = next(iter(_si_spec_chs.values()))
+                n_rows_psd = 1 + len(_si_spec_chs)
+                titles_psd = ["Gxx — Input"] + [f"Gyy — {ch}" for ch in _si_spec_chs]
+                fig_psd = make_subplots(rows=n_rows_psd, cols=1, shared_xaxes=True,
+                                        vertical_spacing=0.04, subplot_titles=titles_psd)
+                fig_psd.add_trace(
+                    go.Scatter(x=freqs_sp, y=10 * np.log10(np.maximum(_first_cd["Gxx"][band_mask_sp], eps)),
+                               mode="lines", name="Gxx", line=dict(color="#1f77b4", width=1.5), showlegend=False),
+                    row=1, col=1,
+                )
+                fig_psd.update_yaxes(title_text="PSD (dB)", row=1, col=1)
+                for i, (ch, cd) in enumerate(_si_spec_chs.items()):
+                    fig_psd.add_trace(
+                        go.Scatter(x=freqs_sp, y=10 * np.log10(np.maximum(cd["Gyy"][band_mask_sp], eps)),
+                                   mode="lines", name=ch,
+                                   line=dict(color=f"hsl({i * 47 % 360},65%,50%)", width=1.5), showlegend=False),
+                        row=i + 2, col=1,
+                    )
+                    fig_psd.update_yaxes(title_text="PSD (dB)", row=i + 2, col=1)
+                fig_psd.update_xaxes(title_text="Frequency (Hz)", row=n_rows_psd, col=1, range=[f_min, f_max])
+                fig_psd.update_layout(height=max(300, 200 * n_rows_psd), margin=dict(t=40, b=60, l=70, r=20))
+                st.plotly_chart(fig_psd, use_container_width=True)
 
     # ── Export ────────────────────────────────────────────────────────────────
     with tab_export:
