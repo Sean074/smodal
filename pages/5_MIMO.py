@@ -777,6 +777,20 @@ with chart_col:
                     bgcolor="rgba(255,240,240,0.8)", bordercolor="darkred", borderwidth=1,
                 )
             st.plotly_chart(fig, use_container_width=True)
+            with st.expander("Stability diagram guide"):
+                st.markdown(
+                    "| Glyph | Class | Criterion | Guidance |\n"
+                    "|---|---|---|---|\n"
+                    "| ★ green star | **Fully stable** | fn, ξ, and MAC all consistent across consecutive orders | Pick first — most trustworthy physical pole |\n"
+                    "| × orange × | **Freq + Damp stable** | fn and ξ consistent; MAC not yet verified | Use if no green star appears at that frequency |\n"
+                    "| + blue + | **Freq stable** | Only fn consistent | Treat with caution — often computational |\n"
+                    "| ○ grey circle | **New** | First appearance at this order | Usually noise; ignore unless it stabilizes |"
+                )
+                st.caption(
+                    "Physical modes appear as vertical columns of consistent poles. "
+                    "Prefer green stars (★) that repeat at the same frequency across many model orders. "
+                    "Stability thresholds (Δf, Δξ, MAC) are adjustable in the controls panel."
+                )
 
     # ── Mode Shapes ───────────────────────────────────────────────────────────
     with tab_shapes:

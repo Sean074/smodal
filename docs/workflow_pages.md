@@ -182,6 +182,7 @@ Two-column layout (1:3 ratio): narrow controls left, charts right.
   - **star / green** = fully stable: above + MAC ≥ ε_MAC
 - Normalised CMIF σ₁ curve shown in background for reference (scaled to fit model-order axis).
 - **Coherence overlay:** same yellow/red shaded rectangles as the CMIF tab. A "⚠ Low coherence (γ²<0.7)" annotation appears in the top-left corner when any red zone is present.
+- **Stability diagram guide** expander (below the chart): markdown table explaining each glyph — fully stable (★ green star, fn+ξ+MAC all consistent), freq+damp stable (× orange ×, fn+ξ consistent), freq stable (+ blue +, fn only), new (○ grey circle, first appearance). Caption notes how to identify physical modes (vertical columns of consistent poles) and that thresholds are adjustable.
 
 #### Mode Shapes
 - Summary table: Mode #, fn (Hz), ξ (%), |φ| and ∠φ (°) per output channel.
@@ -377,6 +378,7 @@ Multiple coherence for output channel _k_:
 - MIMO FRF matrix reshaped to (n_freqs, n_out × 2) before sweep; reuses `build_stability_table`.
 - SVD-CMIF σ₁ curve shown in background for reference.
 - **Coherence overlay:** yellow/red vrect zones + "⚠ Low coherence" annotation when γ² < 0.7 (requires Page 3 data).
+- **Stability diagram guide** expander (below the chart): same four-glyph table as Page 4 — fully stable (★ green star), freq+damp stable (× orange ×), freq stable (+ blue +), new (○ grey circle). Caption notes vertical-column reading strategy and adjustable thresholds.
 
 #### Mode Shapes
 - Summary table: Mode #, fn (Hz), ξ (%), type (S/A), |φ| and ∠φ (°) per output per reference (columns labelled `A·<ch>` and `B·<ch>`).
