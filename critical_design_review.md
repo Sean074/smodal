@@ -132,10 +132,10 @@ FIXED: removed `E402` from global `ignore`; added `[tool.ruff.lint.per-file-igno
 
 ---
 
-**[P6-T2] `pyproject.toml` — `Development Status :: 3 - Alpha` conflicts with `version = "1.0.0"`**
+~~**[P6-T2] `pyproject.toml` — `Development Status :: 3 - Alpha` conflicts with `version = "1.0.0"`**~~
 
-FIX: Update to `Development Status :: 4 - Beta` on current branch;
-update to `5 - Production/Stable` when v1.1.0 ships.
+FIXED: updated classifier to `Development Status :: 4 - Beta` on `development_v1.1.0`.
+Update to `5 - Production/Stable` when v1.1.0 ships.
 
 ---
 
@@ -152,6 +152,6 @@ update to `5 - Production/Stable` when v1.1.0 ships.
 | P6-C1 | ~~CRITICAL~~ FIXED | `core/sysid.py:246,250` | `except Exception` silently substituted unit-vector mode shapes; outer except swallowed order failures silently | FIXED — zeros substituted; both sites emit `RuntimeWarning`; `_residue_warn_count` incremented |
 | P6-M1 | ~~MINOR~~ FIXED | `core/data_loader.py:54` | `compute_sample_rate` pass-instead-of-warn on >1% jitter | FIXED — `UserWarning` emitted with jitter percentage |
 | P6-T1 | ~~NIT~~ FIXED | `pyproject.toml:56` | `E402` ruff ignore project-wide instead of scoped to `pages/` | FIXED — scoped to `pages/*.py` and `app.py` via `per-file-ignores`; 7 pre-existing F401/I001 violations also cleaned up |
-| P6-T2 | NIT | `pyproject.toml` | `Development Status :: 3 - Alpha` conflicts with `version = "1.0.0"` | OPEN |
+| P6-T2 | ~~NIT~~ FIXED | `pyproject.toml` | `Development Status :: 3 - Alpha` conflicts with `version = "1.0.0"` | FIXED — updated to `4 - Beta`; promote to `5 - Production/Stable` when v1.1.0 ships |
 
 **Pass 6 verdict: IN PROGRESS**
