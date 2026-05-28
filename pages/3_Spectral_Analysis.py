@@ -254,13 +254,13 @@ with chart_col:
         is_welch = result_method == "Welch"
 
         # Δf and normalisation factor
-        N = fft_res.get("n_samples", 2 * (len(freqs) - 1))
         if is_welch:
-            nperseg_val = res["params"].get("nperseg", N)
+            nperseg_val = res["params"].get("nperseg", 2 * (len(freqs) - 1))
             delta_f = sample_rate / nperseg_val
             Sxx = ch_data[plot_chs[0]]["Gxx"]
             Syy_dict = {ch: ch_data[ch]["Gyy"] for ch in plot_chs}
         else:
+            N = fft_res.get("n_samples", 2 * (len(freqs) - 1)) if fft_res else 2 * (len(freqs) - 1)
             delta_f = sample_rate / N
             # Window power correction: W₂ = Σ w[n]² (boxcar → W₂=N, Hann → W₂≈0.375·N).
             # Gxx already includes ×4 from one-sided amplitude correction in compute_fft,

@@ -319,12 +319,14 @@ with st.expander("FFT preview (optional — input & output channels, trimmed/fil
         st.plotly_chart(
             fft_subplot(ra_fft, [input_a] + sel_outputs, fs, fft_fmax),
             use_container_width=True,
+            key="mimo_fft_prev_a",
         )
     with col_fftb:
         st.markdown("**Run B**")
         st.plotly_chart(
             fft_subplot(rb_fft, [input_b] + sel_outputs, fs, fft_fmax),
             use_container_width=True,
+            key="mimo_fft_prev_b",
         )
 
 # ── Section D: FRF Preview expander ───────────────────────────────────────────
@@ -344,12 +346,14 @@ with st.expander("FRF preview (optional — H1 estimator, single FFT, trimmed/fi
         st.plotly_chart(
             frf_subplot(ra_frf, input_a, sel_outputs, fs, frf_fmax),
             use_container_width=True,
+            key="mimo_frf_prev_a",
         )
     with col_frfb:
         st.markdown("**Run B**")
         st.plotly_chart(
             frf_subplot(rb_frf, input_b, sel_outputs, fs, frf_fmax),
             use_container_width=True,
+            key="mimo_frf_prev_b",
         )
 
 # ── Layout ────────────────────────────────────────────────────────────────────

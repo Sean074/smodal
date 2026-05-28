@@ -158,3 +158,26 @@ Standalone Python utilities in `tools/`. Run directly in scripts or interactivel
 ### `tools/time_sync.py`
 - `trim_to_overlap(dfs)` — trim a list of DataFrames to their shared time window. Returns `(trimmed_dfs, error)`.
 - `sync_and_merge(dfs, tol_s=1e-4)` — trim to overlap then join all DataFrames on nearest timestamps (reference grid = first DataFrame). Duplicate column names from later DataFrames are suffixed `__N`. Returns `(merged_df, error)`.
+
+---
+
+## Smoke test coverage
+
+`tests/test_page_smoke.py` contains one `AppTest` smoke test per page (9 total). Each test verifies:
+1. The page renders without exception.
+2. It accepts minimal input (pre-seeded session state or small file upload).
+3. It writes the expected session-state keys.
+
+| Test | Page | Pre-seeded state / input | Asserted keys |
+|---|---|---|---|
+| `test_page9_method_renders` | 9 — Method | — | `not at.exception` |
+| `test_page1_time_history_writes_df` | 1 — Time History | `sample_3ch.csv` upload | `df`, `sample_rate` |
+| `test_page2_fft_writes_fft_results` | 2 — FFT | Page 1 state via `_seed_page1_state` | `fft_results` |
+| `test_page3_spectral_writes_results` | 3 — Spectral Analysis | Page 1 state; Welch path | `spectral_results` |
+| `test_page4_simo_builds_stability_table` | 4 — SIMO | `simo_df`, `simo_sample_rate`; max order 8 | `si_stability_table`, `si_H_mat`, `si_freqs` |
+| `test_page5_mimo_builds_stability_table` | 5 — MIMO | `mimo_run_a_df`, `mimo_run_b_df`, `mimo_sample_rate`; max order 8 | `mimo_stability_table`, `mimo_H_mat`, `mimo_freqs` |
+| `test_page6_oma_builds_power_cmif` | 6 — OMA | `oma_df`, `oma_sample_rate` | `oma_sv`, `oma_freqs`, `oma_peak_estimates` |
+| `test_page7_mac_renders_and_computes` | 7 — MAC | `modal_results`, `mac_f06_data`, `_mac_f06_name` | `mac_matrix` |
+| `test_page8_wireframe_renders` | 8 — Wireframe | `modal_results`; `experimental_wireframe.bdf` upload | `not at.exception` |
+
+Pages 4–6 bypass the file-upload UI by pre-seeding DataFrames directly into session state. The `synthetic_modal_results` fixture (in `tests/conftest.py`) provides a minimal valid `modal_results` dict for pages 7–8. Max order is set to 8 on stability-diagram pages to keep CI runtime bounded.
