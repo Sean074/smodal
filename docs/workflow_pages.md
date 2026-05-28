@@ -134,6 +134,8 @@ Four tabs:
 
 Single-Input Multiple-Output Experimental Modal Analysis. Computes FRFs internally from preprocessed time-domain data — Pages 2 and 3 are not required.
 
+> **Worked reference:** `data/input/cantilever_beam/cantilever_response.csv` — analytical steel cantilever, 4 modes, known ground-truth frequencies and damping ratios. Tutorial: `docs/tutorial_cantilever.ipynb`.
+
 Two-column layout (1:3 ratio): narrow controls left, charts right.
 
 ### Data requirements
@@ -504,11 +506,15 @@ MAC plot — not yet implemented.
 
 Planned: compute and display MAC matrix between identified mode shapes.
 
+> **Worked reference:** `data/input/cantilever_beam/cantilever_modes.f06` (4 modes, 11 GIDs) paired with `cantilever_response.csv` modal results. Note: GID 1 (x=0 m, clamped wall) has zero mode shape at all modes — exclude from MAC or expect a zero column/row.
+
 ---
 
-## Page 7 — Wireframe Mode Shape
+## Page 8 — Wireframe Mode Shape
 
 3-D animated mode shape visualisation on a NASTRAN BDF wireframe geometry.
+
+> **Worked reference:** `data/input/cantilever_beam/cantilever_wireframe.bdf` — 11 nodes along beam axis, 10 PLOTEL edges, GID 11 = tip (x=10 m).
 
 ## Page 78 — Method
 
