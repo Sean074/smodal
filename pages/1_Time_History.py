@@ -1,3 +1,5 @@
+import hashlib
+import importlib.metadata
 import json
 import re
 from datetime import datetime
@@ -37,7 +39,11 @@ if uploaded_files:
     if file_names != st.session_state.get("th_file_names"):
         frames = []
         errors = []
+        file_hashes = {}
         for f in uploaded_files:
+            raw = f.read()
+            file_hashes[f.name] = f"sha256:{hashlib.sha256(raw).hexdigest()}"
+            f.seek(0)
             df_i, err = load_csv(f)
             if err:
                 errors.append(f"{f.name}: {err}")
@@ -58,6 +64,7 @@ if uploaded_files:
 
             st.session_state["df"] = merged
             st.session_state["th_file_names"] = file_names
+            st.session_state["th_file_hashes"] = file_hashes
             st.session_state["input_channel"] = None
             st.session_state["output_channels"] = []
             st.session_state["sample_rate"] = None
@@ -139,6 +146,15 @@ if st.button("Save Analysis Log", type="primary"):
             "description": st.session_state.get("description", ""),
             "comment": st.session_state.get("comment", ""),
             "data_summary": summary_rows,
+            "reproducibility": {
+                "smodal_version": importlib.metadata.version("smodal"),
+                "library_versions": {
+                    "numpy": importlib.metadata.version("numpy"),
+                    "scipy": importlib.metadata.version("scipy"),
+                    "streamlit": importlib.metadata.version("streamlit"),
+                },
+                "input_file_hashes": st.session_state.get("th_file_hashes", {}),
+            },
         }
         safe_name = re.sub(r"[^A-Za-z0-9_\-]", "_", (st.session_state.get("analysis_name") or "analysis"))[:64]
         log_path = Path("data/output") / f"{safe_name}_log.json"

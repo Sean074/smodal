@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
@@ -50,8 +52,12 @@ def compute_sample_rate(time: np.ndarray) -> float:
     dt_mean = dt_values.mean()
     dt_std = dt_values.std()
     if dt_std / dt_mean > 0.01:
-        # More than 1 % jitter — warn but still return estimate
-        pass
+        warnings.warn(
+            f"Sample rate jitter {dt_std / dt_mean:.1%} exceeds 1% — "
+            "sample rate estimate may be inaccurate",
+            UserWarning,
+            stacklevel=2,
+        )
     return 1.0 / dt_mean
 
 

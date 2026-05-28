@@ -273,7 +273,7 @@ _RE_EIGENVEC_HDR = re.compile(
 # Identify a GRID data row: leading integer, then "G", then numbers
 _RE_EIGENVEC_ROW_ID = re.compile(r"^\s+(\d+)\s+G\s+", re.IGNORECASE)
 # Extract all NASTRAN-format floating-point numbers (handles no-space adjacent negatives)
-_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]\d+", re.IGNORECASE)
+_RE_FLOAT = re.compile(r"[+-]?\d+\.?\d*[Ee][+-]?\d+", re.IGNORECASE)
 
 
 def parse_f06(file_like: IO | str) -> dict:

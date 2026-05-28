@@ -18,6 +18,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `analysis_name`, `analyst`, `description` | `app.py` | `1_Time_History.py` (log save) |
 | `comment` | `1_Time_History.py` | `1_Time_History.py` (log save) |
 | `th_file_names` | `1_Time_History.py` (load) | `1_Time_History.py` (re-load guard) |
+| `th_file_hashes` | `1_Time_History.py` (load) | `1_Time_History.py` (log save) — `{filename: "sha256:<hex>"}` per uploaded file; refreshed whenever the file set changes |
 | `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` — includes `n_samples` (original signal length) used by Single FFT PSD normalisation |
@@ -33,6 +34,9 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `si_H_mat_band` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) — band-limited FRF matrix `(n_band, n_outputs)` matching `si_freqs_band` |
 | `si_sel_outputs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Extract) |
 | `si_frf_est_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (reference) |
+| `si_spectral_channels` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) — `dict[ch → {Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}]` |
+| `si_spectral_freqs` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab) — frequency axis matching spectral channel arrays |
+| `si_frf_method_used` | `4_SIMO.py` (Build) | `4_SIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `modal_results` | `4_SIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `mimo_run_a_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
 | `mimo_run_b_df` | `5_MIMO.py` (load) | `5_MIMO.py` (Build) |
@@ -48,6 +52,9 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `mimo_sel_outputs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_n_out` | `5_MIMO.py` (Build) | `5_MIMO.py` (Extract) |
 | `mimo_frf_est_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (reference) |
+| `mimo_spectral_channels` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) — `dict[ch → {Gxx, Gyy, Gxy, Gyx, H1, H2, Hv, gamma2}]` (Run A input reference) |
+| `mimo_spectral_freqs` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab) — frequency axis matching spectral channel arrays |
+| `mimo_frf_method_used` | `5_MIMO.py` (Build) | `5_MIMO.py` (Spectral tab coherence gate) — `"Welch"` or `"Single FFT"` |
 | `mimo_modal_results` | `5_MIMO.py` (Extract) | `7_MAC.py`, `8_Wireframe.py` |
 | `oma_df` | `6_OMA.py` (load) | `6_OMA.py` |
 | `oma_sample_rate` | `6_OMA.py` (load) | `6_OMA.py` |
@@ -74,6 +81,30 @@ if st.session_state.get("df") is None:
     st.warning("Go to Page 1 — Time History and upload a data file.")
     st.stop()
 ```
+
+---
+
+## Analysis log format
+
+Written by page 1 to `data/output/<safe_name>_log.json`. Top-level keys:
+
+| Key | Type | Description |
+|---|---|---|
+| `date` | string | ISO-8601 timestamp of the save action (`timespec="seconds"`) |
+| `analysis_name` | string | From `app.py` session state |
+| `analyst` | string | From `app.py` session state |
+| `description` | string | From `app.py` session state |
+| `comment` | string | Free-text comment entered on page 1 |
+| `data_summary` | list[dict] | One entry per channel from `compute_summary()` — includes `samples`, `sample_rate`, `duration`, `min/max time`, `min/max value`, `RMS` |
+| `reproducibility` | dict | Traceability block (see below) |
+
+`reproducibility` sub-keys:
+
+| Sub-key | Description |
+|---|---|
+| `smodal_version` | App version string from `importlib.metadata.version("smodal")` |
+| `library_versions` | Dict with `numpy`, `scipy`, `streamlit` version strings |
+| `input_file_hashes` | Dict `{filename: "sha256:<hex>"}` — one entry per uploaded CSV file |
 
 ---
 
@@ -113,6 +144,32 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 - `fdd_damping(sv1, freqs, peak_idx)` — half-power bandwidth damping estimate; returns `(xi_pct, f_a, f_b)`. Returns `(0.0, freqs[0], freqs[-1])` sentinel when no upper half-power crossing is found (peak at or near last frequency index); callers should clamp 0.0 to a minimum damping value.
 - `compute_mac(phi_ref, phi_comp)` — MAC matrix `(n_ref, n_comp)` between two sets of mode shapes.
 
+### `core/ema_pipeline.py`
+Shared EMA mode-extraction pipeline. Both SIMO (page 4) and MIMO (page 5) call these functions so that fixes to the residue/synthesis/NMSE chain propagate to both pages automatically.
+
+- `extract_modes(H_band, freqs_band, freqs_full, fn_estimates, xi_estimates) → dict` — runs `poles_from_estimates → extract_residues → synthesize_frf (band + full) → modal_fit_nmse` in one call. `H_band` and synthesis arrays share the same `n_outputs` dimension: `(n_out,)` for SIMO, `(n_out*2,)` for MIMO stacked runs. MIMO-specific residue reshape stays in the page. Returns dict with keys: `poles`, `fn_hz`, `xi`, `residues` `(n_outputs, n_modes)`, `H_synthesis_band`, `H_synthesis_full`, `nmse`.
+- `nmse_quality_label(nmse_db: float) → str` — returns `"Excellent"` / `"Good"` / `"Acceptable"` / `"Poor"` for thresholds `< -30` / `< -20` / `< -10` / `>= -10` dB. Used in the fit-quality expander on both pages 4 and 5.
+- `prepare_band_arrays(H, freqs, f_min, f_max) → (H_band, freqs_band)` — slices `H` and `freqs` to `[f_min, f_max]` Hz using a single boolean mask. Raises `ValueError` if the band is empty.
+
+### `core/ema_charts.py`
+Shared chart-rendering helpers called by `core/simo_page.py` and `core/mimo_page.py`. Extracted to eliminate duplicated plotting code between the two EMA pages.
+
+- `coherence_gate_warnings(spec_chs, spec_freqs, frf_method_used, f_min, f_max)` — computes minimum γ² across channels, calls `band_coherence_stats` at 0.70 and 0.85 thresholds, renders `st.warning` / `st.info` as appropriate, returns `(red_bands, yellow_bands)` — lists of `(f_lo, f_hi)` tuples for vrect shading.
+- `stability_diagram_figure(stab_results, cmif_vals, freqs, f_min, f_max, max_order, coh_red, coh_yellow, eps, title)` — builds and returns a Plotly figure: CMIF background trace, stability scatter coloured by class (`new` / `stable_f` / `stable_fd` / `stable_all`), coherence vrects, low-coherence annotation.
+- `stability_diagram_guide()` — renders the stability legend expander (glyph → class → criterion → guidance table).
+- `spectral_tab_content(spec_chs, spec_freqs, frf_method_used, f_min, f_max, eps, frf_key, coh_caption, input_label)` — renders three nested sub-tabs (FRF, Coherence, Auto-PSD) inside an active parent tab; `frf_key` is the widget key for the FRF estimator radio, `coh_caption` is optional text below the coherence plot, `input_label` sets the Gxx subplot title.
+- `mode_estimates_init_df(deduped, cmif_cache, freqs_cache, n_modes)` — pure function; builds the `pd.DataFrame` for the Step 2 data editor from pre-deduplicated stable poles, CMIF-derived peaks, and manual fallback rows.
+
+### `core/simo_page.py`
+Page-level logic for page 4 (SIMO EMA). The `pages/4_SIMO.py` driver is an 11-line entry point; all rendering lives here.
+
+- `render()` — full SIMO page: file upload, channel assignment, preprocessing expander, FFT/FRF preview expanders, stability diagram controls (Step 1), mode-estimates editor (Step 2), build-stability and extract-modes action handlers, and a five-tab chart panel (CMIF, Stability Diagram, Mode Shapes, Spectral, Export). Calls shared helpers from `core/ema_charts.py` for stability figure, spectral sub-tabs, and coherence gate.
+
+### `core/mimo_page.py`
+Page-level logic for page 5 (MIMO EMA). The `pages/5_MIMO.py` driver is an 11-line entry point; all rendering lives here.
+
+- `render()` — full MIMO page: dual-file upload (Run A / Run B), channel assignment, preprocessing expander, FFT/FRF preview expanders, stability diagram controls (Step 1), mode-estimates editor (Step 2), build-stability and extract-modes action handlers (MIMO-specific residue reshape and mode-type classification), and a five-tab chart panel (SVD-CMIF, Stability Diagram, Mode Shapes, Spectral, Export). Calls shared helpers from `core/ema_charts.py` for stability figure, spectral sub-tabs, and coherence gate.
+
 ### `core/mimo.py`
 - `compute_mimo_cmif(H, n_out)` — SVD per frequency line of the (n_out × 2) MIMO FRF slice; returns `(n_freqs, 2)` singular values σ₁, σ₂.
 - `compute_mimo_frfs(run_a_proc, run_b_proc, input_a, input_b, sel_outputs, fs, frf_method, frf_est, n_seg, ovlp_pct, welch_win)` — assembles the stacked MIMO FRF matrix from two processed runs; returns `(H_stacked, freqs_full)` where `H_stacked` is `(n_freqs, n_out * 2)`. Raises `ValueError` if `sel_outputs` is empty.
@@ -120,6 +177,10 @@ Windows supported by `compute_welch_quantities`: any scipy window name (typicall
 ### `core/plots.py`
 - `fft_subplot(df_proc, channels, fs, fmax)` — returns a stacked Plotly figure of magnitude FFT (dB) for each channel.
 - `frf_subplot(df_proc, input_ch, output_chs, fs, fmax)` — returns a stacked magnitude + phase FRF figure (H1 estimator, single FFT) for each output channel.
+
+### `core/uff_writer.py`
+- `write_uff58_shapes(fn_hz, xi, residues, channel_names, analysis_name="") → bytes` — writes identified mode shapes as UFF Dataset 58 (one dataset per channel). `fn_hz`: `(n_modes,)` Hz; `xi`: `(n_modes,)` damping ratios 0–1; `residues`: `(n_channels, n_modes)` complex. Each dataset uses function type 3 (Ordinary Mode Shape), abscissa type 18 (frequency Hz), non-uniform abscissa with data stored as `(fn, real, imag)` triplets in `6E13.5` format. Damping values written to ID line 4.
+- `write_uff58_shapes_mimo(fn_hz, xi, r3d, channel_names, analysis_name="") → bytes` — MIMO variant. `r3d`: `(n_out, 2, n_modes)` complex (run A / run B). Produces `2 × n_out` datasets with channel names prefixed `A_` / `B_`.
 
 ### `core/geometry.py`
 - `parse_wireframe_bdf(file)` — parses a NASTRAN BDF (free-field or 8-char fixed-field) for `GRID` and `PLOTEL` cards; returns a `GeomModel` dataclass with `.grids` and `.plotels` dicts.
@@ -152,3 +213,40 @@ Standalone Python utilities in `tools/`. Run directly in scripts or interactivel
 ### `tools/time_sync.py`
 - `trim_to_overlap(dfs)` — trim a list of DataFrames to their shared time window. Returns `(trimmed_dfs, error)`.
 - `sync_and_merge(dfs, tol_s=1e-4)` — trim to overlap then join all DataFrames on nearest timestamps (reference grid = first DataFrame). Duplicate column names from later DataFrames are suffixed `__N`. Returns `(merged_df, error)`.
+
+---
+
+## Reference datasets
+
+Pre-built analytical datasets for workflow validation and CI regression.
+
+| File | Description |
+|------|-------------|
+| `data/input/cantilever_beam/cantilever_response.csv` | 300 s time history at fs=200 Hz; columns: `time, force, acc_0m, acc_5m, acc_7m, acc_10m`; tip excitation + 4 accelerometers on a steel cantilever with 100 kg tip mass |
+| `data/input/cantilever_beam/cantilever_wireframe.bdf` | NASTRAN free-field BDF; 11 GRID cards (GIDs 1–11 at x=0…10 m) + 10 PLOTEL cards |
+| `data/input/cantilever_beam/cantilever_modes.f06` | NASTRAN SOL 103 F06; 4 modes at 0.55, 4.49, 13.67, 27.98 Hz; 11 GIDs per eigenvector (T3 only) |
+
+Generated by `scripts/generate_cantilever_reference.py`. Tutorial: `docs/tutorial_cantilever.ipynb`.
+
+---
+
+## Smoke test coverage
+
+`tests/test_page_smoke.py` contains one `AppTest` smoke test per page (9 total). Each test verifies:
+1. The page renders without exception.
+2. It accepts minimal input (pre-seeded session state or small file upload).
+3. It writes the expected session-state keys.
+
+| Test | Page | Pre-seeded state / input | Asserted keys |
+|---|---|---|---|
+| `test_page9_method_renders` | 9 — Method | — | `not at.exception` |
+| `test_page1_time_history_writes_df` | 1 — Time History | `sample_3ch.csv` upload | `df`, `sample_rate` |
+| `test_page2_fft_writes_fft_results` | 2 — FFT | Page 1 state via `_seed_page1_state` | `fft_results` |
+| `test_page3_spectral_writes_results` | 3 — Spectral Analysis | Page 1 state; Welch path | `spectral_results` |
+| `test_page4_simo_builds_stability_table` | 4 — SIMO | `simo_df`, `simo_sample_rate`; max order 8 | `si_stability_table`, `si_H_mat`, `si_freqs` |
+| `test_page5_mimo_builds_stability_table` | 5 — MIMO | `mimo_run_a_df`, `mimo_run_b_df`, `mimo_sample_rate`; max order 8 | `mimo_stability_table`, `mimo_H_mat`, `mimo_freqs` |
+| `test_page6_oma_builds_power_cmif` | 6 — OMA | `oma_df`, `oma_sample_rate` | `oma_sv`, `oma_freqs`, `oma_peak_estimates` |
+| `test_page7_mac_renders_and_computes` | 7 — MAC | `modal_results`, `mac_f06_data`, `_mac_f06_name` | `mac_matrix` |
+| `test_page8_wireframe_renders` | 8 — Wireframe | `modal_results`; `experimental_wireframe.bdf` upload | `not at.exception` |
+
+Pages 4–6 bypass the file-upload UI by pre-seeding DataFrames directly into session state. The `synthetic_modal_results` fixture (in `tests/conftest.py`) provides a minimal valid `modal_results` dict for pages 7–8. Max order is set to 8 on stability-diagram pages to keep CI runtime bounded.

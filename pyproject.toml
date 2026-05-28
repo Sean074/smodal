@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smodal"
-version = "1.0.0"
+version = "1.1.0"
 description = "Streamlit app for experimental and operational modal analysis (EMA / OMA): SIMO, MIMO, FDD, MAC, 3-D mode shapes."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,7 +29,7 @@ keywords = [
     "streamlit",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -66,10 +66,13 @@ extend-exclude = [".venv", "data", "docs/methods.ipynb"]
 # UP  pyupgrade (modernise syntax for the target Python)
 select = ["E", "F", "W", "I", "UP"]
 ignore = [
-    "E402",  # import not at top — pages must call st.set_page_config() before other imports
     "E501",  # long lines — matplotlib/plotly trace definitions get unavoidably wide
     "E741",  # short names (I, A, L, w, ...) are standard in signal-processing / FEA notation
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"pages/*.py" = ["E402"]  # st.set_page_config() must precede other imports
+"app.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

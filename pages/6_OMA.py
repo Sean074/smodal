@@ -459,6 +459,10 @@ with chart_col:
                 "σ₁ peaks indicate natural frequencies. "
                 "σ₂ peaks at the same frequency suggest repeated or closely spaced modes."
             )
+            st.caption(
+                "OMA is output-only — no input/output coherence is defined. "
+                "Assess data quality by examining singular value flatness between peaks."
+            )
 
     # ── Mode Shapes tab ────────────────────────────────────────────────────────
     with tab_shapes:

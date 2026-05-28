@@ -9,6 +9,28 @@ ROOT = pathlib.Path(__file__).parent.parent
 
 
 @pytest.fixture
+def synthetic_modal_results():
+    """Minimal valid modal_results dict for Pages 7–8 smoke tests.
+
+    Shapes match what SIMO writes: fn/xi as 1-D numpy arrays,
+    mode_shapes as (n_out, n_modes) complex array.
+    Channel names match sample_3ch.csv so the MAC mapping UI renders correctly.
+    """
+    n_out, n_modes, n_freqs = 2, 2, 200
+    return {
+        "fn": np.array([10.0, 25.0]),
+        "xi": np.array([0.03, 0.05]),
+        "poles": np.array([-1.885 + 62.83j, -7.854 + 157.08j]),
+        "mode_shapes": np.ones((n_out, n_modes), dtype=complex),
+        "output_channels": ["acc_1", "acc_2"],
+        "freqs": np.linspace(0, 500, n_freqs),
+        "H_measured": np.ones((n_freqs, n_out), dtype=complex),
+        "H_synthesis": np.ones((n_freqs, n_out), dtype=complex),
+        "nmse": {"acc_1": 0.01, "acc_2": 0.01},
+    }
+
+
+@pytest.fixture
 def sine_signal() -> np.ndarray:
     """Single 10 Hz sinusoid, 2 s at 1 kHz."""
     freq, fs, duration = 10.0, 1000.0, 2.0

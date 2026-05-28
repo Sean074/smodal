@@ -243,11 +243,25 @@ def build_stability_table(
                             res = extract_residues(H, freqs, poles)
                         mshapes = res.T  # (n_poles, n_out) → transpose for MAC use
                         _residue_warn_count += sum(1 for _ww in _w if issubclass(_ww.category, RuntimeWarning))
-                    except Exception:
-                        mshapes = np.ones((len(poles), H.shape[1]), dtype=complex)
+                    except Exception as _exc:
+                        warnings.warn(
+                            f"build_stability_table: residue extraction failed for order {n}"
+                            f" ({_exc}) — mode shapes set to zero; poles will not be"
+                            " promoted to stable_all",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
+                        _residue_warn_count += 1
+                        mshapes = np.zeros((len(poles), H.shape[1]), dtype=complex)
                 else:
                     mshapes = np.zeros((0, H.shape[1]), dtype=complex)
-        except Exception:
+        except Exception as _exc:
+            warnings.warn(
+                f"build_stability_table: pole-finding failed for order {n} ({_exc})"
+                " — order skipped",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             results.append(
                 {
                     "order": n,

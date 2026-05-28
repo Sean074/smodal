@@ -5,6 +5,7 @@ from scipy.signal import get_window
 
 from core.spectral import (
     WINDOW_SCIPY_NAMES,
+    band_coherence_stats,
     compute_fft,
     compute_output_spectral_matrix,
     compute_spectral_quantities,
@@ -96,3 +97,31 @@ def test_compute_output_spectral_matrix_conjugate_symmetry():
     freqs, Syy = compute_output_spectral_matrix(signals, fs, nperseg=128, noverlap=64)
     for k in range(len(freqs)):
         np.testing.assert_allclose(Syy[k], Syy[k].conj().T, atol=1e-10)
+
+
+def test_band_coherence_stats_passes():
+    freqs = np.linspace(0.0, 100.0, 200)
+    gamma2 = np.ones(200)
+    stats = band_coherence_stats(gamma2, freqs, f_min=10.0, f_max=50.0)
+    assert stats["passes"] is True
+    assert stats["pct_low"] == 0.0
+    assert abs(stats["mean_coh"] - 1.0) < 1e-9
+    assert stats["low_bands"] == []
+
+
+def test_band_coherence_stats_fails():
+    freqs = np.linspace(0.0, 100.0, 200)
+    gamma2 = np.full(200, 0.5)
+    stats = band_coherence_stats(gamma2, freqs, f_min=10.0, f_max=50.0)
+    assert stats["passes"] is False
+    assert abs(stats["pct_low"] - 1.0) < 1e-9
+    assert abs(stats["mean_coh"] - 0.5) < 1e-9
+
+
+def test_band_coherence_stats_intervals():
+    freqs = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+    gamma2 = np.array([1.0, 1.0, 0.5, 0.5, 1.0, 0.4, 0.4, 0.4, 1.0, 1.0, 1.0])
+    stats = band_coherence_stats(gamma2, freqs, f_min=0.0, f_max=10.0, threshold=0.7)
+    assert len(stats["low_bands"]) == 2
+    assert stats["low_bands"][0] == (2.0, 3.0)
+    assert stats["low_bands"][1] == (5.0, 7.0)
