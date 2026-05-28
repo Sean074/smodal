@@ -18,6 +18,7 @@ All pages communicate through `st.session_state`. Keys and their owners:
 | `analysis_name`, `analyst`, `description` | `app.py` | `1_Time_History.py` (log save) |
 | `comment` | `1_Time_History.py` | `1_Time_History.py` (log save) |
 | `th_file_names` | `1_Time_History.py` (load) | `1_Time_History.py` (re-load guard) |
+| `th_file_hashes` | `1_Time_History.py` (load) | `1_Time_History.py` (log save) — `{filename: "sha256:<hex>"}` per uploaded file; refreshed whenever the file set changes |
 | `processed_df` | `1_Time_History.py` | `2_FFT.py`, `3_Spectral_Analysis.py` |
 | `processing_info` | `1_Time_History.py` | `2_FFT.py` (display label) |
 | `fft_results` | `2_FFT.py` | `3_Spectral_Analysis.py` — includes `n_samples` (original signal length) used by Single FFT PSD normalisation |
@@ -80,6 +81,30 @@ if st.session_state.get("df") is None:
     st.warning("Go to Page 1 — Time History and upload a data file.")
     st.stop()
 ```
+
+---
+
+## Analysis log format
+
+Written by page 1 to `data/output/<safe_name>_log.json`. Top-level keys:
+
+| Key | Type | Description |
+|---|---|---|
+| `date` | string | ISO-8601 timestamp of the save action (`timespec="seconds"`) |
+| `analysis_name` | string | From `app.py` session state |
+| `analyst` | string | From `app.py` session state |
+| `description` | string | From `app.py` session state |
+| `comment` | string | Free-text comment entered on page 1 |
+| `data_summary` | list[dict] | One entry per channel from `compute_summary()` — includes `samples`, `sample_rate`, `duration`, `min/max time`, `min/max value`, `RMS` |
+| `reproducibility` | dict | Traceability block (see below) |
+
+`reproducibility` sub-keys:
+
+| Sub-key | Description |
+|---|---|
+| `smodal_version` | App version string from `importlib.metadata.version("smodal")` |
+| `library_versions` | Dict with `numpy`, `scipy`, `streamlit` version strings |
+| `input_file_hashes` | Dict `{filename: "sha256:<hex>"}` — one entry per uploaded CSV file |
 
 ---
 
