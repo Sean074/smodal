@@ -196,7 +196,7 @@ def render() -> None:
                     margin=dict(t=30, b=50, l=70, r=20),
                     legend=dict(orientation="h", y=-0.08),
                 )
-                st.plotly_chart(fig_prev, use_container_width=True)
+                st.plotly_chart(fig_prev, width="stretch")
 
     def _preview_proc():
         _ok = not (
@@ -225,7 +225,7 @@ def render() -> None:
         )
         st.plotly_chart(
             fft_subplot(_preview_proc(), [input_channel] + sel_outputs, fs, fft_fmax),
-            use_container_width=True,
+            width="stretch",
         )
 
     # ── Section D: FRF preview expander ─────────────────────────────────────────
@@ -239,7 +239,7 @@ def render() -> None:
         )
         st.plotly_chart(
             frf_subplot(_preview_proc(), input_channel, sel_outputs, fs, frf_fmax),
-            use_container_width=True,
+            width="stretch",
         )
 
     # ── Layout ──────────────────────────────────────────────────────────────────
@@ -323,7 +323,7 @@ def render() -> None:
             )
 
         build_btn = st.button(
-            "Build Stability Diagram", type="primary", use_container_width=True, key="si_build"
+            "Build Stability Diagram", type="primary", width="stretch", key="si_build"
         )
 
         st.divider()
@@ -348,12 +348,12 @@ def render() -> None:
                 "source": st.column_config.TextColumn(disabled=True),
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             key="si_estimates",
         )
 
         extract_btn = st.button(
-            "Extract Mode Shapes", type="secondary", use_container_width=True, key="si_extract"
+            "Extract Mode Shapes", type="secondary", width="stretch", key="si_extract"
         )
 
     # ── Build Stability Diagram ──────────────────────────────────────────────────
@@ -539,7 +539,7 @@ def render() -> None:
                     fig.add_vrect(
                         x0=f_lo, x1=f_hi, fillcolor="rgba(220,50,50,0.20)", layer="below", line_width=0
                     )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption("Peaks indicate candidate mode locations.")
 
         # ── Stability Diagram ────────────────────────────────────────────────────
@@ -559,7 +559,7 @@ def render() -> None:
                     eps,
                     title="Stability Diagram — pLSCF",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 stability_diagram_guide()
 
         # ── Mode Shapes ──────────────────────────────────────────────────────────
@@ -589,7 +589,7 @@ def render() -> None:
                         row[f"|φ| {ch}"] = round(float(np.abs(residues[o, m])), 6)
                         row[f"∠φ {ch} (°)"] = round(float(np.degrees(np.angle(residues[o, m]))), 2)
                     summary_rows.append(row)
-                st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
 
                 show_modal = st.checkbox(
                     "Show individual modal contributions", value=False, key="si_show_modal"
@@ -700,7 +700,7 @@ def render() -> None:
                     margin=dict(t=40, b=60, l=70, r=20),
                     legend=dict(orientation="h", y=-0.04),
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 with st.expander("Fit quality (NMSE per channel)"):
                     st.caption(
@@ -716,7 +716,7 @@ def render() -> None:
                         }
                         for o, ch in enumerate(out_chs)
                     ]
-                    st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(nmse_rows), width="stretch", hide_index=True)
 
         # ── Spectral ─────────────────────────────────────────────────────────────
         with tab_spectral:
@@ -758,7 +758,7 @@ def render() -> None:
                         row[f"phi_phase_deg_{ch}"] = float(np.degrees(np.angle(residues[o, m])))
                     rows.append(row)
                 export_df = pd.DataFrame(rows)
-                st.dataframe(export_df, use_container_width=True, hide_index=True)
+                st.dataframe(export_df, width="stretch", hide_index=True)
                 csv_bytes = export_df.to_csv(index=False).encode()
                 analysis_name = st.session_state.get("analysis_name", "analysis")
                 st.download_button(

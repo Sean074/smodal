@@ -126,7 +126,7 @@ if output_chs:
     st.header("Data Summary")
     summary_rows = compute_summary(df, input_ch, output_chs)
     st.session_state["sample_rate"] = summary_rows[0]["Sample Rate (Hz)"]
-    st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
 
 # ---------------------------------------------------------------------------
 # Section 4: Analysis log
@@ -357,7 +357,7 @@ else:
         legend=dict(orientation="h", y=-0.12),
     )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Filter frequency response
@@ -394,7 +394,7 @@ if sos is not None and not filter_error:
             title_text=f"{filter_type}  |  order {order}  |  "
             + (f"{f_lo} Hz" if filter_type in ("Lowpass", "Highpass") else f"{f_lo}–{f_hi} Hz"),
         )
-        st.plotly_chart(fig_fr, use_container_width=True)
+        st.plotly_chart(fig_fr, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Persist processed (trimmed + filtered) signals for downstream pages
@@ -433,4 +433,4 @@ with st.expander("Channel statistics (visible window)"):
                 "Samples": int(sig.size),
             }
         )
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)

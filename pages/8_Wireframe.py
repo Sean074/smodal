@@ -52,7 +52,7 @@ with st.expander("Experimental Setup", expanded=True):
                 c2.metric("PLOTELs", len(geom_test.plotels))
                 c3.metric("RBE3s", len(geom_test.rbe3s))
                 with st.expander("Preview", expanded=False):
-                    st.plotly_chart(build_static_figure(geom_test), use_container_width=True)
+                    st.plotly_chart(build_static_figure(geom_test), width="stretch")
             except Exception as exc:
                 st.error(f"Failed to parse Test BDF: {exc}")
 
@@ -187,7 +187,7 @@ with st.expander("Analytical Results (optional)", expanded=False):
                 c1.metric("GRIDs", len(geom_fe.grids))
                 c2.metric("PLOTELs", len(geom_fe.plotels))
                 with st.expander("Preview", expanded=False):
-                    st.plotly_chart(build_static_figure(geom_fe), use_container_width=True)
+                    st.plotly_chart(build_static_figure(geom_fe), width="stretch")
             except Exception as exc:
                 st.error(f"Failed to parse FE BDF: {exc}")
 
@@ -308,7 +308,7 @@ if has_fe_data:
                 fig = build_static_mode_figure(
                     geom_fe, _gd, freq_hz=_freq, scale=float(scale), phase_deg=float(phase_deg), view=view
                 )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
 
 # --- Test (Experimental) column ---
 with col_test:
@@ -373,4 +373,4 @@ with col_test:
                     view=view,
                     accel_gids=_accel_gids,
                 )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")

@@ -274,7 +274,7 @@ def render() -> None:
                     margin=dict(t=30, b=50, l=70, r=20),
                     legend=dict(orientation="h", y=-0.08),
                 )
-                st.plotly_chart(fig_prev, use_container_width=True)
+                st.plotly_chart(fig_prev, width="stretch")
 
     def _preview_proc(run_df):
         _cutoffs_ok = not (
@@ -308,14 +308,14 @@ def render() -> None:
             st.markdown("**Run A**")
             st.plotly_chart(
                 fft_subplot(ra_fft, [input_a] + sel_outputs, fs, fft_fmax),
-                use_container_width=True,
+                width="stretch",
                 key="mimo_fft_prev_a",
             )
         with col_fftb:
             st.markdown("**Run B**")
             st.plotly_chart(
                 fft_subplot(rb_fft, [input_b] + sel_outputs, fs, fft_fmax),
-                use_container_width=True,
+                width="stretch",
                 key="mimo_fft_prev_b",
             )
 
@@ -335,14 +335,14 @@ def render() -> None:
             st.markdown("**Run A**")
             st.plotly_chart(
                 frf_subplot(ra_frf, input_a, sel_outputs, fs, frf_fmax),
-                use_container_width=True,
+                width="stretch",
                 key="mimo_frf_prev_a",
             )
         with col_frfb:
             st.markdown("**Run B**")
             st.plotly_chart(
                 frf_subplot(rb_frf, input_b, sel_outputs, fs, frf_fmax),
-                use_container_width=True,
+                width="stretch",
                 key="mimo_frf_prev_b",
             )
 
@@ -435,7 +435,7 @@ def render() -> None:
             )
 
         build_btn = st.button(
-            "Build Stability Diagram", type="primary", use_container_width=True, key="mimo_build"
+            "Build Stability Diagram", type="primary", width="stretch", key="mimo_build"
         )
 
         st.divider()
@@ -462,12 +462,12 @@ def render() -> None:
                 "source": st.column_config.TextColumn(disabled=True),
             },
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             key="mimo_estimates",
         )
 
         extract_btn = st.button(
-            "Extract Mode Shapes", type="secondary", use_container_width=True, key="mimo_extract"
+            "Extract Mode Shapes", type="secondary", width="stretch", key="mimo_extract"
         )
 
     # ── Build Stability Diagram ──────────────────────────────────────────────────
@@ -681,7 +681,7 @@ def render() -> None:
                         x0=f_lo, x1=f_hi,
                         fillcolor="rgba(220,50,50,0.20)", layer="below", line_width=0,
                     )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 st.caption("σ₁ shows all modes. σ₂ helps resolve repeated or closely-spaced modes.")
 
         # ── Stability Diagram ────────────────────────────────────────────────────
@@ -701,7 +701,7 @@ def render() -> None:
                     eps,
                     title="Stability Diagram — pLSCF (Multi-Reference)",
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 stability_diagram_guide()
 
         # ── Mode Shapes ──────────────────────────────────────────────────────────
@@ -737,7 +737,7 @@ def render() -> None:
                                 float(np.degrees(np.angle(r3d[o, ri, m]))), 2
                             )
                     summary_rows.append(row_d)
-                st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
 
                 default_plot = out_chs[: min(4, len(out_chs))]
                 plot_chs = st.multiselect(
@@ -871,7 +871,7 @@ def render() -> None:
                         margin=dict(t=40, b=60, l=70, r=20),
                         legend=dict(orientation="h", y=-0.04),
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 with st.expander("Fit quality (NMSE per channel)"):
                     st.caption(
@@ -897,7 +897,7 @@ def render() -> None:
                                 "Quality": nmse_quality_label(float(nmse[n_out_fit + o])),
                             }
                         )
-                    st.dataframe(pd.DataFrame(nmse_rows), use_container_width=True, hide_index=True)
+                    st.dataframe(pd.DataFrame(nmse_rows), width="stretch", hide_index=True)
 
         # ── Spectral ─────────────────────────────────────────────────────────────
         with tab_spectral:
@@ -945,7 +945,7 @@ def render() -> None:
                             )
                     rows.append(row_e)
                 export_df = pd.DataFrame(rows)
-                st.dataframe(export_df, use_container_width=True, hide_index=True)
+                st.dataframe(export_df, width="stretch", hide_index=True)
                 csv_bytes = export_df.to_csv(index=False).encode()
                 analysis_name = st.session_state.get("analysis_name", "analysis")
                 st.download_button(

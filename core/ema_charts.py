@@ -206,7 +206,7 @@ def spectral_tab_content(
             margin=dict(t=40, b=60, l=70, r=20),
             legend=dict(orientation="h", y=-0.04),
         )
-        st.plotly_chart(fig_frf, use_container_width=True)
+        st.plotly_chart(fig_frf, width="stretch")
 
     with sub_coh:
         if frf_method_used == "Single FFT":
@@ -231,7 +231,7 @@ def spectral_tab_content(
                 margin=dict(t=30, b=50, l=60, r=20),
                 legend=dict(orientation="h", y=-0.15),
             )
-            st.plotly_chart(fig_coh, use_container_width=True)
+            st.plotly_chart(fig_coh, width="stretch")
             if coh_caption:
                 st.caption(coh_caption)
 
@@ -279,7 +279,7 @@ def spectral_tab_content(
         fig_psd.update_layout(
             height=max(300, 200 * n_rows_psd), margin=dict(t=40, b=60, l=70, r=20)
         )
-        st.plotly_chart(fig_psd, use_container_width=True)
+        st.plotly_chart(fig_psd, width="stretch")
 
 
 def mode_estimates_init_df(deduped: list, cmif_cache, freqs_cache, n_modes: int) -> pd.DataFrame:

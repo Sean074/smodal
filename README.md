@@ -10,7 +10,7 @@ A multi-page Streamlit app for structural dynamics modal analysis and experiment
 
 ## Prerequisites
 
-- Python 3.10 or later
+- Python 3.11 or later
 - Git
 
 ---

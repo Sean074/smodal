@@ -194,7 +194,7 @@ with st.expander("Pre-processing (optional)"):
                 margin=dict(t=30, b=50, l=70, r=20),
                 legend=dict(orientation="h", y=-0.08),
             )
-            st.plotly_chart(fig_prev, use_container_width=True)
+            st.plotly_chart(fig_prev, width="stretch")
 
 
 def _get_proc_df():
@@ -237,7 +237,7 @@ with ctrl_col:
         key="oma_frange",
     )
 
-    build_btn = st.button("Build Power CMIF", type="primary", use_container_width=True, key="oma_build")
+    build_btn = st.button("Build Power CMIF", type="primary", width="stretch", key="oma_build")
 
     st.divider()
     st.subheader("Step 2 — Mode Specification")
@@ -287,11 +287,11 @@ with ctrl_col:
             "source": st.column_config.TextColumn(disabled=True),
         },
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key=f"oma_estimates_v{seed_ver}",
     )
 
-    extract_btn = st.button("Extract Mode Shapes", type="secondary", use_container_width=True, key="oma_extract")
+    extract_btn = st.button("Extract Mode Shapes", type="secondary", width="stretch", key="oma_extract")
 
 # ── Build Power CMIF ──────────────────────────────────────────────────────────
 if build_btn:
@@ -454,7 +454,7 @@ with chart_col:
                 title="Power CMIF — Singular Values of S_yy",
                 legend=dict(orientation="h", y=-0.15),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             st.caption(
                 "σ₁ peaks indicate natural frequencies. "
                 "σ₂ peaks at the same frequency suggest repeated or closely spaced modes."
@@ -491,7 +491,7 @@ with chart_col:
                     row[f"|φ| {ch}"] = round(float(np.abs(shapes[o, m])), 6)
                     row[f"∠φ {ch} (°)"] = round(float(np.degrees(np.angle(shapes[o, m]))), 2)
                 summary_rows.append(row)
-            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(summary_rows), width="stretch", hide_index=True)
 
             # Mode shape magnitude bar charts
             if n_modes_fit > 0 and len(out_chs) > 0:
@@ -526,7 +526,7 @@ with chart_col:
                     margin=dict(t=50, b=40, l=80, r=20),
                     title="Normalised Mode Shape Amplitudes",
                 )
-                st.plotly_chart(fig_ms, use_container_width=True)
+                st.plotly_chart(fig_ms, width="stretch")
 
             st.info(
                 "OMA mode shapes are un-normalised (no mass-normalisation is possible without "
@@ -622,7 +622,7 @@ with chart_col:
                     title="Auto-PSD: Measured vs. SDOF Modal Fit",
                     legend=dict(orientation="h", y=-0.12),
                 )
-                st.plotly_chart(fig_psd, use_container_width=True)
+                st.plotly_chart(fig_psd, width="stretch")
                 st.caption(
                     "Blue — measured auto-PSD (diagonal of S_yy). "
                     "Red dashed — SDOF superposition of identified modes. "
@@ -652,7 +652,7 @@ with chart_col:
                 rows.append(row)
 
             export_df = pd.DataFrame(rows)
-            st.dataframe(export_df, use_container_width=True, hide_index=True)
+            st.dataframe(export_df, width="stretch", hide_index=True)
             csv_bytes = export_df.to_csv(index=False).encode()
             analysis_name = st.session_state.get("analysis_name", "analysis")
             st.download_button(

@@ -214,7 +214,7 @@ fig.update_layout(
     yaxis_title="Analytical Mode (Hz)",
     height=500,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # ── Section F: Frequency comparison table ────────────────────────────────────
 
@@ -239,4 +239,4 @@ for fe_idx, fe_f in enumerate(mac_fe_freqs):
     )
 
 df_table = pd.DataFrame(rows)
-st.dataframe(df_table, use_container_width=True)
+st.dataframe(df_table, width="stretch")

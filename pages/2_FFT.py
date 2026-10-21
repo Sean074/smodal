@@ -125,7 +125,7 @@ with c5:
         st.caption(f"Δf = {df_val:.3g} Hz")
     else:
         st.write("")
-    compute_btn = st.button("Compute & Save FFT", type="primary", use_container_width=True)
+    compute_btn = st.button("Compute & Save FFT", type="primary", width="stretch")
 
 # ── Saved FFT indicator ───────────────────────────────────────────────────────
 if st.session_state.get("fft_results"):
@@ -286,7 +286,7 @@ if method == "Single FFT":
         showlegend=False,
         margin=dict(t=40, b=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 else:  # Welch
     # ── Resolve PSD data ──────────────────────────────────────────────────────
@@ -353,4 +353,4 @@ else:  # Welch
         showlegend=False,
         margin=dict(t=40, b=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")

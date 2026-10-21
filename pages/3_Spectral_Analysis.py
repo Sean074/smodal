@@ -103,7 +103,7 @@ with ctrl_col:
                     "noverlap": noverlap,
                 }
 
-    compute_btn = st.button("Compute", type="primary", use_container_width=True, key="sa_compute")
+    compute_btn = st.button("Compute", type="primary", width="stretch", key="sa_compute")
 
     cached = st.session_state.get("spectral_results")
     if cached:
@@ -244,7 +244,7 @@ with chart_col:
             legend=dict(orientation="h", y=-0.06),
             margin=dict(t=40, b=60, l=60, r=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # ── Tab 2: PSD ───────────────────────────────────────────────────────────
     with tab_psd:
@@ -317,7 +317,7 @@ with chart_col:
             legend=dict(orientation="h", y=-0.06),
             margin=dict(t=40, b=60, l=60, r=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # ── Tab 3: Cross-Power ───────────────────────────────────────────────────
     with tab_cp:
@@ -364,7 +364,7 @@ with chart_col:
             legend=dict(orientation="h", y=-0.06),
             margin=dict(t=40, b=60, l=60, r=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # ── Tab 4: FRF ───────────────────────────────────────────────────────────
     with tab_frf:
@@ -442,7 +442,7 @@ with chart_col:
             legend=dict(orientation="h", y=-0.06),
             margin=dict(t=40, b=60, l=60, r=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     # ── Tab 5: Coherence ─────────────────────────────────────────────────────
     with tab_coh:
@@ -483,7 +483,7 @@ with chart_col:
             legend=dict(orientation="h", y=-0.06),
             margin=dict(t=40, b=60, l=60, r=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         result_method = res["params"].get("method", "Single FFT")
         if result_method == "Welch":
