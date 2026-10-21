@@ -30,7 +30,7 @@ Also completed in this cycle (pulled forward from v1.2.0 and backlog):
 
 | # | Item | Notes |
 |---|---|---|
-| 1 | CI numerical regression against cantilever benchmark | Run the tutorial notebook headlessly in CI; assert fn/ξ within tolerance — catches `core/` regressions that smoke tests miss |
+| 1 | CI numerical regression against cantilever benchmark | ✓ DONE — `tests/test_cantilever_regression.py` checks fn/ξ against the analytical reference and runs in CI (`pytest tests/`) |
 | 2 | FRF rank-deficiency warning on MIMO page | Warn when the FRF matrix is nearly singular before running pLSCF |
 | 3 | Spurious-pole flag heuristic | Flag poles with damping > 10% or < 0% as likely computational |
 | 4 | Promote PyPI classifier to `5 - Production/Stable` | After CI regression suite is in place |
