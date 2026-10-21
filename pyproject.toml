@@ -15,6 +15,13 @@ dependencies = [
     "scipy>=1.13",
     "plotly>=6.7",
     "nbformat>=5.9",
+    # Transitive floors (Dependabot, 21 Oct 2026): not imported directly, but a
+    # bare streamlit>=1.50 range admits old versions of these with open advisories.
+    "GitPython>=3.1.59",
+    "pillow>=12.3.0",
+    "python-multipart>=0.0.31",
+    "starlette>=1.3.1",
+    "anyio>=4.14.2",
 ]
 license = {text = "MIT"}
 authors = [
